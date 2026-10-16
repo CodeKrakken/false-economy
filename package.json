@@ -2,14 +2,16 @@
   "name": "false-economy",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.3.0"
@@ -20,6 +22,7 @@
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.3.1",
+    "tsx": "^4.20.6",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }
