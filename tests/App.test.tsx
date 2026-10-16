@@ -104,6 +104,27 @@ describe("Economy Simulator interface", () => {
     expect((interestRate as HTMLInputElement).value).toBe("4");
   });
 
+  it("allows advancing a turn from the keyboard", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        return jsonResponse(advancedEconomy);
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("$1,000");
+    const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
+    taxRate.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("$1,025")).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).endsWith("/api/economy/turn"),
+    )).toBe(true);
+  });
+
   it("submits selected policies and displays the returned economy", async () => {
     const user = userEvent.setup();
     const fetchMock = mockFetch(async (input, init) => {

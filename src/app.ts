@@ -1,4 +1,6 @@
+import { existsSync } from "node:fs";
 import express, { type ErrorRequestHandler } from "express";
+import { resolve } from "node:path";
 import { advanceTurn, createInitialEconomy } from "./economy.js";
 
 const app = express();
@@ -48,6 +50,21 @@ app.post("/api/economy/turn", (request, response, next) => {
     next(error);
   }
 });
+
+const clientDirectory = resolve(process.cwd(), "dist/client");
+if (existsSync(clientDirectory)) {
+  app.use(express.static(clientDirectory));
+  app.use((request, response, next) => {
+    if (request.path === "/api" || request.path.startsWith("/api/")) {
+      next();
+      return;
+    }
+
+    response.sendFile("index.html", { root: clientDirectory }, (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Route not found." });
