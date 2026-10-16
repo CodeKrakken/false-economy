@@ -1,0 +1,340 @@
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import type { Economy } from "./economy.js";
+import "./styles.css";
+
+type Policies = Pick<Economy, "taxRate" | "publicSpending" | "interestRate">;
+type RequestAction = "advance" | "reset" | null;
+
+async function requestEconomy(path: string, init?: RequestInit): Promise<Economy> {
+  const response = await fetch(path, init);
+  let result: unknown;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("The server returned an unreadable response.");
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof result === "object" &&
+      result !== null &&
+      "error" in result &&
+      typeof result.error === "string"
+        ? result.error
+        : `Request failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+
+  return result as Economy;
+}
+
+function policiesFrom(economy: Economy): Policies {
+  return {
+    taxRate: economy.taxRate,
+    publicSpending: economy.publicSpending,
+    interestRate: economy.interestRate,
+  };
+}
+
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+function App() {
+  const [economy, setEconomy] = useState<Economy | null>(null);
+  const [policies, setPolicies] = useState<Policies | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeRequest, setActiveRequest] = useState<RequestAction>(null);
+  const [error, setError] = useState<string | null>(null);
+  const requestLocked = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    requestEconomy("/api/economy")
+      .then((result) => {
+        if (isMounted) {
+          setEconomy(result);
+          setPolicies(policiesFrom(result));
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (isMounted) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load the economy.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function advanceTurn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!policies || !economy || economy.turn >= 5 || requestLocked.current) return;
+
+    requestLocked.current = true;
+    setActiveRequest("advance");
+    setError(null);
+    try {
+      const result = await requestEconomy("/api/economy/turn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policies),
+      });
+      setEconomy(result);
+      setPolicies(policiesFrom(result));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to advance the economy.",
+      );
+    } finally {
+      requestLocked.current = false;
+      setActiveRequest(null);
+    }
+  }
+
+  async function resetGame() {
+    if (requestLocked.current) return;
+
+    requestLocked.current = true;
+    setActiveRequest("reset");
+    setError(null);
+    try {
+      const result = await requestEconomy("/api/economy/reset", { method: "POST" });
+      setEconomy(result);
+      setPolicies(policiesFrom(result));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to reset the economy.",
+      );
+    } finally {
+      requestLocked.current = false;
+      setActiveRequest(null);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <main className="loading-screen">
+        <p role="status">Loading economy...</p>
+      </main>
+    );
+  }
+
+  if (!economy || !policies) {
+    return (
+      <main className="loading-screen">
+        <p className="error-message" role="alert">{error ?? "Economy unavailable."}</p>
+        <button className="button button-secondary" onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </main>
+    );
+  }
+
+  const isComplete = economy.turn >= 5;
+  const isResilient =
+    economy.inflation >= 0 &&
+    economy.inflation <= 5 &&
+    economy.unemployment <= 8 &&
+    economy.gdp >= 1000 &&
+    economy.treasury >= 0;
+  const isBusy = activeRequest !== null;
+
+  function updatePolicy(field: keyof Policies, value: string) {
+    setPolicies((current) =>
+      current ? { ...current, [field]: value === "" ? 0 : Number(value) } : current,
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="masthead">
+        <a className="wordmark" href="#top" aria-label="Economy Simulator home">
+          <span className="wordmark-mark" aria-hidden="true">E</span>
+          <span>ECONOMY<br />SIMULATOR</span>
+        </a>
+        <div className="masthead-meta">
+          <span className="live-indicator" aria-hidden="true" />
+          <span>POLICY CYCLE</span>
+          <span className="meta-divider" />
+          <span>5 TURNS</span>
+        </div>
+      </header>
+
+      <main id="top" className="main-content">
+        <section className="page-intro" aria-labelledby="page-title">
+          <div>
+            <p className="eyebrow">PUBLIC FINANCE / SIMULATION 01</p>
+            <h1 id="page-title">Economy dashboard</h1>
+          </div>
+          <div className="turn-marker" aria-label={`Turn ${economy.turn} of 5`}>
+            <span className="turn-marker-label">CURRENT TURN</span>
+            <span className="turn-marker-value">{String(economy.turn).padStart(2, "0")}</span>
+            <span className="turn-marker-total">/ 05</span>
+          </div>
+        </section>
+
+        {error && <p className="error-message" role="alert">{error}</p>}
+
+        <section className="economy-section" aria-labelledby="indicators-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">NATIONAL INDICATORS</p>
+              <h2 id="indicators-title">Current state</h2>
+            </div>
+            <p className="turn-count">Turn {economy.turn} of 5</p>
+          </div>
+
+          <dl className="metrics-grid">
+            <div className="metric metric-primary">
+              <dt>Gross domestic product</dt>
+              <dd>{formatMoney(economy.gdp)}</dd>
+              <span className="metric-unit">GDP</span>
+            </div>
+            <div className="metric">
+              <dt>Inflation</dt>
+              <dd>{formatPercent(economy.inflation)}</dd>
+              <span className="metric-unit">ANNUAL RATE</span>
+            </div>
+            <div className="metric">
+              <dt>Unemployment</dt>
+              <dd>{formatPercent(economy.unemployment)}</dd>
+              <span className="metric-unit">WORKFORCE</span>
+            </div>
+            <div className="metric">
+              <dt>Treasury</dt>
+              <dd>{formatMoney(economy.treasury)}</dd>
+              <span className="metric-unit">PUBLIC BALANCE</span>
+            </div>
+            <div className="metric metric-turn">
+              <dt>Current turn</dt>
+              <dd>{economy.turn}<span className="turn-denominator">/ 5</span></dd>
+              <progress aria-label={`Turn ${economy.turn} of 5`} max={5} value={economy.turn} />
+            </div>
+          </dl>
+        </section>
+
+        {isComplete && (
+          <section className="assessment" aria-labelledby="assessment-title">
+            <div className="assessment-heading">
+              <p className="eyebrow">CYCLE COMPLETE</p>
+              <h2 id="assessment-title">Final assessment</h2>
+              <p className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}>
+                {isResilient ? "Resilient economy" : "Economy under pressure"}
+              </p>
+            </div>
+            <p className="assessment-thresholds">
+              Resilient means inflation is 0–5%, unemployment is at most 8%, GDP is at least
+              $1,000, and treasury is at least $0.
+            </p>
+          </section>
+        )}
+
+        <section className="policy-section" aria-labelledby="policy-title">
+          <div className="section-heading policy-heading">
+            <div>
+              <p className="eyebrow">NEXT DECISION</p>
+              <h2 id="policy-title">Policy settings</h2>
+            </div>
+            <button
+              className="button button-secondary reset-button"
+              type="button"
+              onClick={resetGame}
+              disabled={isBusy}
+            >
+              {activeRequest === "reset" ? "Resetting..." : "Reset game"}
+            </button>
+          </div>
+
+          <form onSubmit={advanceTurn}>
+            <div className="policy-grid">
+              <div className="policy-control">
+                <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
+                <div className="input-row">
+                  <input
+                    id="tax-rate"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step="any"
+                    value={policies.taxRate}
+                    onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
+                    disabled={isBusy || isComplete}
+                  />
+                  <span className="input-range">0—60%</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="public-spending">Public spending <span>($)</span></label>
+                <div className="input-row">
+                  <input
+                    id="public-spending"
+                    type="number"
+                    min={0}
+                    max={500}
+                    step="any"
+                    value={policies.publicSpending}
+                    onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
+                    disabled={isBusy || isComplete}
+                  />
+                  <span className="input-range">$0—$500</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="interest-rate">Interest rate <span>(%)</span></label>
+                <div className="input-row">
+                  <input
+                    id="interest-rate"
+                    type="number"
+                    min={0}
+                    max={20}
+                    step="any"
+                    value={policies.interestRate}
+                    onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
+                    disabled={isBusy || isComplete}
+                  />
+                  <span className="input-range">0—20%</span>
+                </div>
+              </div>
+            </div>
+            <div className="form-footer">
+              <button
+                className="button button-primary"
+                type="submit"
+                disabled={isBusy || isComplete}
+              >
+                <span>{activeRequest === "advance" ? "Advancing..." : "Advance turn"}</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+      </main>
+    </div>
+  );
+}
+
+export default App;
