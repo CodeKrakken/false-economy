@@ -52,7 +52,7 @@ export function advanceTurn(
       ? 0
       : clamp(inflation, -Number.MAX_VALUE, Number.MAX_VALUE),
     unemployment: clamp(unemployment, 0, 100),
-    treasury: clamp(treasury, 0, Number.MAX_VALUE),
+    treasury: Number.isFinite(treasury) ? treasury : 0,    
     taxRate: policies.taxRate,
     publicSpending: policies.publicSpending,
     interestRate: policies.interestRate,

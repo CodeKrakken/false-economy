@@ -76,8 +76,7 @@ describe("advanceTurn", () => {
     expect(higherTax.treasury).toBeGreaterThan(lowerTax.treasury);
   });
 
-  it("keeps economic indicators finite and clamps GDP, treasury, and unemployment", () => {
-    const economy: Economy = {
+  it("keeps economic indicators finite and clamps GDP and unemployment", () => {    const economy: Economy = {
       ...createInitialEconomy(),
       gdp: -10,
       unemployment: 150,
@@ -96,7 +95,7 @@ describe("advanceTurn", () => {
       nextEconomy.treasury,
     ].every(Number.isFinite)).toBe(true);
     expect(nextEconomy.gdp).toBeGreaterThanOrEqual(0);
-    expect(nextEconomy.treasury).toBeGreaterThanOrEqual(0);
+    expect(nextEconomy.treasury).toBeLessThan(0);    
     expect(nextEconomy.unemployment).toBe(100);
 
     const noUnemployment = advanceTurn(
