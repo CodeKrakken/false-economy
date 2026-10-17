@@ -206,91 +206,97 @@ function App() {
   return (
     <div className="app-shell">
       <header className="masthead">
-        <a className="wordmark" href="#top" aria-label="Economy Simulator home">
-          <span className="wordmark-mark" aria-hidden="true">E</span>
-          <span>ECONOMY<br />SIMULATOR</span>
-        </a>
-        <div className="masthead-meta">
-          <span className="live-indicator" aria-hidden="true" />
-          <span>LIVE</span>
-          <span className="meta-divider" />
-          <span>1S / TURN</span>
+        <div className="masthead-inner">
+          <a className="wordmark" href="#top" aria-label="False Economy home">
+            <span className="wordmark-overline">FALSE</span>
+            <span className="wordmark-name">ECONOMY</span>
+          </a>
+          <div className="masthead-meta">
+            <span className="live-indicator" aria-hidden="true" />
+            <span>LIVE SIMULATION</span>
+            <span className="meta-divider" />
+            <span>1 SEC / TURN</span>
+          </div>
         </div>
       </header>
 
       <main id="top" className="main-content">
         <section className="page-intro" aria-labelledby="page-title">
-          <div>
-            <p className="eyebrow">PUBLIC FINANCE / SIMULATION 01</p>
+          <div className="page-intro-copy">
+            <p className="eyebrow">ECONOMIC BRIEF / INTERACTIVE EDITION</p>
             <h1 id="page-title">False Economy</h1>
-            <h2>It's the economy, stupid</h2>
+            <h2 className="page-dek">It's the economy, stupid</h2>
           </div>
           <div className="turn-marker" aria-label={`Turn ${economy.turn}`}>
             <span className="turn-marker-label">CURRENT TURN</span>
             <span className="turn-marker-value">{String(economy.turn).padStart(2, "0")}</span>
+            <span className="turn-marker-note">LIVE CYCLE</span>
           </div>
         </section>
 
         {error && <p className="error-message" role="alert">{error}</p>}
 
-        <section className="economy-section" aria-labelledby="indicators-title">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">NATIONAL INDICATORS</p>
-              <h2 id="indicators-title">Current state</h2>
+        <div className="feature-grid">
+          <section className="economy-section" aria-labelledby="indicators-title">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">NATIONAL INDICATORS / LIVE READOUT</p>
+                <h2 id="indicators-title">Current state</h2>
+              </div>
+              <p className="turn-count">Turn {economy.turn}</p>
             </div>
-            <p className="turn-count">Turn {economy.turn}</p>
-          </div>
 
-          <dl className="metrics-grid">
-            <div className="metric metric-primary">
-              <dt>Gross domestic product</dt>
-              <dd>{formatMoney(economy.gdp)}</dd>
-              <span className="metric-unit">GDP</span>
-            </div>
-            <div className="metric">
-              <dt>Inflation</dt>
-              <dd>{formatPercent(economy.inflation)}</dd>
-              <span className="metric-unit">ANNUAL RATE</span>
-            </div>
-            <div className="metric">
-              <dt>Unemployment</dt>
-              <dd>{formatPercent(economy.unemployment)}</dd>
-              <span className="metric-unit">WORKFORCE</span>
-            </div>
-            <div className="metric">
-              <dt>Treasury</dt>
-              <dd>{formatMoney(economy.treasury)}</dd>
-              <span className="metric-unit">PUBLIC BALANCE</span>
-            </div>
-            <div className="metric metric-turn">
-              <dt>Current turn</dt>
-              <dd>{economy.turn}</dd>
-            </div>
-          </dl>
-        </section>
+            <dl className="metrics-grid">
+              <div className="metric metric-primary">
+                <dt>Gross domestic product</dt>
+                <dd>{formatMoney(economy.gdp)}</dd>
+                <span className="metric-unit">GDP</span>
+              </div>
+              <div className="metric">
+                <dt>Inflation</dt>
+                <dd>{formatPercent(economy.inflation)}</dd>
+                <span className="metric-unit">ANNUAL RATE</span>
+              </div>
+              <div className="metric">
+                <dt>Unemployment</dt>
+                <dd>{formatPercent(economy.unemployment)}</dd>
+                <span className="metric-unit">WORKFORCE</span>
+              </div>
+              <div className="metric">
+                <dt>Treasury</dt>
+                <dd>{formatMoney(economy.treasury)}</dd>
+                <span className="metric-unit">PUBLIC BALANCE</span>
+              </div>
+              <div className="metric metric-turn">
+                <dt>Current turn</dt>
+                <dd>{economy.turn}</dd>
+              </div>
+            </dl>
+          </section>
 
-        <section className="assessment" aria-labelledby="assessment-title">
-          <div className="assessment-heading">
-            <p className="eyebrow">LIVE ASSESSMENT</p>
-            <h2 id="assessment-title">Current outlook</h2>
-            <p
-              className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}
-              role="status"
-            >
-              {isResilient ? "Resilient economy" : "Economy under pressure"}
+          <section className="assessment" aria-labelledby="assessment-title">
+            <div className="assessment-heading">
+              <p className="eyebrow">LIVE ASSESSMENT / TURN {economy.turn}</p>
+              <h2 id="assessment-title">Current outlook</h2>
+              <p
+                className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}
+                role="status"
+              >
+                <span className="assessment-status-mark" aria-hidden="true" />
+                {isResilient ? "Resilient economy" : "Economy under pressure"}
+              </p>
+            </div>
+            <p className="assessment-thresholds">
+              Resilient means inflation is 0–5%, unemployment is at most 8%, GDP is at least
+              $1,000, and treasury is at least $0.
             </p>
-          </div>
-          <p className="assessment-thresholds">
-            Resilient means inflation is 0–5%, unemployment is at most 8%, GDP is at least
-            $1,000, and treasury is at least $0.
-          </p>
-        </section>
+          </section>
+        </div>
 
         <section className="policy-section" aria-labelledby="policy-title">
           <div className="section-heading policy-heading">
             <div>
-              <p className="eyebrow">NEXT DECISION</p>
+              <p className="eyebrow">POLICY DESK / LIVE LEVERS</p>
               <h2 id="policy-title">Policy settings</h2>
             </div>
             <button
@@ -303,8 +309,7 @@ function App() {
             </button>
           </div>
 
-          <div>
-            <div className="policy-grid">
+          <div className="policy-grid">
               <div className="policy-control">
                 <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
                 <div className="input-row">
@@ -356,7 +361,6 @@ function App() {
                   <span className="input-range">0—20%</span>
                 </div>
               </div>
-            </div>
           </div>
         </section>
 
