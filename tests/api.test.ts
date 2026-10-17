@@ -74,6 +74,42 @@ describe("Economy API", () => {
     expect(response.body.error).toEqual(expect.any(String));
   });
 
+  it.each([null, [], "not an object"])(
+    "returns 400 when the request body is %s",
+    async (body) => {
+      const response = await request(app).post("/api/economy/turn").send(body);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatch(/body must be an object/i);
+    },
+  );
+
+  it.each([
+    ["taxRate", "{\"taxRate\":1e400,\"publicSpending\":250,\"interestRate\":4}"],
+    ["publicSpending", "{\"taxRate\":30,\"publicSpending\":1e400,\"interestRate\":4}"],
+    ["interestRate", "{\"taxRate\":30,\"publicSpending\":250,\"interestRate\":1e400}"],
+  ])("rejects a non-finite %s", async (field, body) => {
+    const response = await request(app)
+      .post("/api/economy/turn")
+      .set("Content-Type", "application/json")
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe(`${field} must be a finite number.`);
+  });
+
+  it.each([
+    ["publicSpending", 501],
+    ["interestRate", 21],
+  ])("returns a range error for %s", async (field, value) => {
+    const response = await request(app)
+      .post("/api/economy/turn")
+      .send({ ...policies, [field]: value });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(new RegExp(field));
+  });
+
   it("returns 400 with a JSON error for malformed JSON", async () => {
     const response = await request(app)
       .post("/api/economy/turn")

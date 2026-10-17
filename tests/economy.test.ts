@@ -106,6 +106,22 @@ describe("advanceTurn", () => {
     expect(noUnemployment.unemployment).toBe(0);
   });
 
+  it("replaces NaN indicators with their safe fallback values", () => {
+    const nextEconomy = advanceTurn(
+      {
+        ...createInitialEconomy(),
+        gdp: Number.NaN,
+        inflation: Number.NaN,
+        treasury: Number.NaN,
+      },
+      policies,
+    );
+
+    expect(nextEconomy.gdp).toBe(0);
+    expect(nextEconomy.inflation).toBe(0);
+    expect(nextEconomy.treasury).toBe(0);
+  });
+
   it.each([
     { key: "taxRate", value: -1, min: 0, max: 60 },
     { key: "taxRate", value: 61, min: 0, max: 60 },

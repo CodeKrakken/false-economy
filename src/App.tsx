@@ -146,7 +146,7 @@ function App() {
   if (!economy || !policies) {
     return (
       <main className="loading-screen">
-        <p className="error-message" role="alert">{error ?? "Economy unavailable."}</p>
+        <p className="error-message" role="alert">{error || "Economy unavailable."}</p>
         <button className="button button-secondary" onClick={() => window.location.reload()}>
           Try again
         </button>
@@ -164,9 +164,10 @@ function App() {
   const isBusy = activeRequest !== null;
 
   function updatePolicy(field: keyof Policies, value: string) {
-    setPolicies((current) =>
-      current ? { ...current, [field]: value === "" ? 0 : Number(value) } : current,
-    );
+    setPolicies((current) => ({
+      ...current!,
+      [field]: value === "" ? 0 : Number(value),
+    }));
   }
 
   return (

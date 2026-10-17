@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
@@ -247,6 +247,90 @@ describe("Economy Simulator interface", () => {
     expect(alert.textContent).toContain("Service unavailable");
   });
 
+  it("uses the status fallback when an error response has no string message", async () => {
+    mockFetch(async () => jsonResponse({ error: 42 }, 503));
+
+    render(<App />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Request failed with status 503.",
+    );
+  });
+
+  it("reports unreadable JSON from the server", async () => {
+    mockFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("invalid JSON");
+      },
+    }) as Response);
+
+    render(<App />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "The server returned an unreadable response.",
+    );
+  });
+
+  it("uses a fallback message for a non-Error initial request failure", async () => {
+    mockFetch(async () => Promise.reject("offline"));
+
+    render(<App />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Unable to load the economy.",
+    );
+  });
+
+  it("uses the unavailable fallback for an empty initial request error", async () => {
+    mockFetch(async () => Promise.reject(new Error("")));
+
+    render(<App />);
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Economy unavailable.",
+    );
+  });
+
+  it("ignores the initial response when the component unmounts", async () => {
+    let resolveRequest!: (response: Response) => void;
+    mockFetch(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    const { unmount } = render(<App />);
+    unmount();
+
+    await act(async () => {
+      resolveRequest(jsonResponse(initialEconomy));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  it("ignores an initial request failure when the component unmounts", async () => {
+    let rejectRequest!: (error: unknown) => void;
+    mockFetch(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectRequest = reject;
+        }),
+    );
+
+    const { unmount } = render(<App />);
+    unmount();
+
+    await act(async () => {
+      rejectRequest("offline");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
   it("shows an API error when advancing a turn fails", async () => {
     const user = userEvent.setup();
     mockFetch(async (input) => {
@@ -263,5 +347,148 @@ describe("Economy Simulator interface", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("taxRate must be between");
     expect(screen.getByText("Turn 1 of 5")).toBeTruthy();
+  });
+
+  it("uses a fallback message for a non-Error turn failure", async () => {
+    const user = userEvent.setup();
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        return Promise.reject("offline");
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    await user.click(screen.getByRole("button", { name: /advance turn/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Unable to advance the economy.",
+    );
+  });
+
+  it("uses a fallback message when resetting fails with a non-Error", async () => {
+    const user = userEvent.setup();
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/reset")) {
+        return Promise.reject("offline");
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    await user.click(screen.getByRole("button", { name: /reset game/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Unable to reset the economy.",
+    );
+  });
+
+  it("shows the server message when resetting fails", async () => {
+    const user = userEvent.setup();
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/reset")) {
+        return jsonResponse({ error: "Reset unavailable" }, 503);
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    await user.click(screen.getByRole("button", { name: /reset game/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("Reset unavailable");
+  });
+
+  it("does not send a reset while another request holds the request lock", async () => {
+    let resolveTurn!: (response: Response) => void;
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        return new Promise((resolve) => {
+          resolveTurn = resolve;
+        });
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    const advanceButton = screen.getByRole("button", { name: /advance turn/i });
+    const resetButton = screen.getByRole("button", { name: /reset game/i });
+    act(() => {
+      fireEvent.click(advanceButton);
+      fireEvent.click(resetButton);
+    });
+
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).endsWith("/api/economy/reset"),
+    )).toBe(false);
+
+    resolveTurn(jsonResponse(advancedEconomy));
+    await screen.findByText("$1,025");
+  });
+
+  it("activates the retry control after the initial request fails", async () => {
+    mockFetch(async () => jsonResponse({ error: "Service unavailable" }, 503));
+
+    render(<App />);
+    await screen.findByRole("alert");
+    const reload = vi.fn();
+    vi.stubGlobal("window", new Proxy(window, {
+      get(target, property, receiver) {
+        if (property === "location") return { reload };
+        return Reflect.get(target, property, receiver);
+      },
+    }));
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("shows the strained assessment when the completed economy misses its targets", async () => {
+    const user = userEvent.setup();
+    let economy = { ...initialEconomy, inflation: -1 };
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        economy = { ...economy, turn: economy.turn + 1, gdp: 900 };
+      }
+      return jsonResponse(economy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    for (let turn = 1; turn < 5; turn += 1) {
+      await user.click(screen.getByRole("button", { name: /advance turn/i }));
+      await screen.findByText(`Turn ${turn + 1} of 5`);
+    }
+
+    expect(await screen.findByText("Economy under pressure")).toBeTruthy();
+  });
+
+  it("ignores a form submission while an advance request is pending", async () => {
+    const user = userEvent.setup();
+    let resolveTurn!: (response: Response) => void;
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        return new Promise((resolve) => {
+          resolveTurn = resolve;
+        });
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await screen.findByText("Turn 1 of 5");
+    const form = screen.getByRole("button", { name: /advance turn/i }).closest("form");
+    await user.click(screen.getByRole("button", { name: /advance turn/i }));
+    fireEvent.submit(form!);
+
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/economy/turn"),
+    )).toHaveLength(1);
+
+    resolveTurn(jsonResponse(advancedEconomy));
+    await screen.findByText("$1,025");
   });
 });
