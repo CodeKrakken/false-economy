@@ -222,7 +222,8 @@ function App() {
         <section className="page-intro" aria-labelledby="page-title">
           <div>
             <p className="eyebrow">PUBLIC FINANCE / SIMULATION 01</p>
-            <h1 id="page-title">Economy dashboard</h1>
+            <h1 id="page-title">False Economy</h1>
+            <h2>It's the economy, stupid</h2>
           </div>
           <div className="turn-marker" aria-label={`Turn ${economy.turn}`}>
             <span className="turn-marker-label">CURRENT TURN</span>

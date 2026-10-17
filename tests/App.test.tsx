@@ -94,7 +94,8 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /economy dashboard/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /False Economy/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /It's the economy, stupid/i })).toBeTruthy();
     expect(screen.getByText("$1,000")).toBeTruthy();
     expect(screen.getByText("2.0%")).toBeTruthy();
     expect(screen.getByText("5.0%")).toBeTruthy();
