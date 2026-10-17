@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
 import type { Economy } from "./economy.js";
 import "./styles.css";
 
 type Policies = Pick<Economy, "taxRate" | "publicSpending" | "interestRate">;
 type RequestAction = "advance" | "reset" | null;
+const TURN_INTERVAL_MS = 1000;
 
 async function requestEconomy(path: string, init?: RequestInit): Promise<Economy> {
   const response = await fetch(path, init);
@@ -57,6 +57,9 @@ function App() {
   const [activeRequest, setActiveRequest] = useState<RequestAction>(null);
   const [error, setError] = useState<string | null>(null);
   const requestLocked = useRef(false);
+  const policiesRef = useRef<Policies | null>(policies);
+  const isReady = !isLoading && economy !== null && policies !== null;
+  policiesRef.current = policies;
 
   useEffect(() => {
     let isMounted = true;
@@ -86,9 +89,9 @@ function App() {
     };
   }, []);
 
-  async function advanceTurn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!policies || !economy || economy.turn >= 5 || requestLocked.current) return;
+  async function advanceTurn() {
+    const currentPolicies = policiesRef.current;
+    if (!currentPolicies || requestLocked.current) return;
 
     requestLocked.current = true;
     setActiveRequest("advance");
@@ -97,7 +100,7 @@ function App() {
       const result = await requestEconomy("/api/economy/turn", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(policies),
+        body: JSON.stringify(currentPolicies),
       });
       setEconomy(result);
       setPolicies(policiesFrom(result));
@@ -112,6 +115,16 @@ function App() {
       setActiveRequest(null);
     }
   }
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const interval = window.setInterval(() => {
+      void advanceTurn();
+    }, TURN_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [isReady]);
 
   async function resetGame() {
     if (requestLocked.current) return;
@@ -154,7 +167,6 @@ function App() {
     );
   }
 
-  const isComplete = economy.turn >= 5;
   const isResilient =
     economy.inflation >= 0 &&
     economy.inflation <= 5 &&
@@ -179,9 +191,9 @@ function App() {
         </a>
         <div className="masthead-meta">
           <span className="live-indicator" aria-hidden="true" />
-          <span>POLICY CYCLE</span>
+          <span>LIVE</span>
           <span className="meta-divider" />
-          <span>5 TURNS</span>
+          <span>1S / TURN</span>
         </div>
       </header>
 
@@ -191,10 +203,9 @@ function App() {
             <p className="eyebrow">PUBLIC FINANCE / SIMULATION 01</p>
             <h1 id="page-title">Economy dashboard</h1>
           </div>
-          <div className="turn-marker" aria-label={`Turn ${economy.turn} of 5`}>
+          <div className="turn-marker" aria-label={`Turn ${economy.turn}`}>
             <span className="turn-marker-label">CURRENT TURN</span>
             <span className="turn-marker-value">{String(economy.turn).padStart(2, "0")}</span>
-            <span className="turn-marker-total">/ 05</span>
           </div>
         </section>
 
@@ -206,7 +217,7 @@ function App() {
               <p className="eyebrow">NATIONAL INDICATORS</p>
               <h2 id="indicators-title">Current state</h2>
             </div>
-            <p className="turn-count">Turn {economy.turn} of 5</p>
+            <p className="turn-count">Turn {economy.turn}</p>
           </div>
 
           <dl className="metrics-grid">
@@ -232,27 +243,27 @@ function App() {
             </div>
             <div className="metric metric-turn">
               <dt>Current turn</dt>
-              <dd>{economy.turn}<span className="turn-denominator">/ 5</span></dd>
-              <progress aria-label={`Turn ${economy.turn} of 5`} max={5} value={economy.turn} />
+              <dd>{economy.turn}</dd>
             </div>
           </dl>
         </section>
 
-        {isComplete && (
-          <section className="assessment" aria-labelledby="assessment-title">
-            <div className="assessment-heading">
-              <p className="eyebrow">CYCLE COMPLETE</p>
-              <h2 id="assessment-title">Final assessment</h2>
-              <p className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}>
-                {isResilient ? "Resilient economy" : "Economy under pressure"}
-              </p>
-            </div>
-            <p className="assessment-thresholds">
-              Resilient means inflation is 0–5%, unemployment is at most 8%, GDP is at least
-              $1,000, and treasury is at least $0.
+        <section className="assessment" aria-labelledby="assessment-title">
+          <div className="assessment-heading">
+            <p className="eyebrow">LIVE ASSESSMENT</p>
+            <h2 id="assessment-title">Current outlook</h2>
+            <p
+              className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}
+              role="status"
+            >
+              {isResilient ? "Resilient economy" : "Economy under pressure"}
             </p>
-          </section>
-        )}
+          </div>
+          <p className="assessment-thresholds">
+            Resilient means inflation is 0–5%, unemployment is at most 8%, GDP is at least
+            $1,000, and treasury is at least $0.
+          </p>
+        </section>
 
         <section className="policy-section" aria-labelledby="policy-title">
           <div className="section-heading policy-heading">
@@ -270,7 +281,7 @@ function App() {
             </button>
           </div>
 
-          <form onSubmit={advanceTurn}>
+          <div>
             <div className="policy-grid">
               <div className="policy-control">
                 <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
@@ -283,7 +294,7 @@ function App() {
                     step="any"
                     value={policies.taxRate}
                     onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
-                    disabled={isBusy || isComplete}
+                    disabled={isBusy}
                   />
                   <span className="input-range">0—60%</span>
                 </div>
@@ -299,7 +310,7 @@ function App() {
                     step="any"
                     value={policies.publicSpending}
                     onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
-                    disabled={isBusy || isComplete}
+                    disabled={isBusy}
                   />
                   <span className="input-range">$0—$500</span>
                 </div>
@@ -315,22 +326,13 @@ function App() {
                     step="any"
                     value={policies.interestRate}
                     onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
-                    disabled={isBusy || isComplete}
+                    disabled={isBusy}
                   />
                   <span className="input-range">0—20%</span>
                 </div>
               </div>
             </div>
-            <div className="form-footer">
-              <button
-                className="button button-primary"
-                type="submit"
-                disabled={isBusy || isComplete}
-              >
-                <span>{activeRequest === "advance" ? "Advancing..." : "Advance turn"}</span>
-              </button>
-            </div>
-          </form>
+          </div>
         </section>
 
       </main>

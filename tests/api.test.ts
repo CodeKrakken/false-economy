@@ -56,6 +56,16 @@ describe("Economy API", () => {
     });
   });
 
+  it("continues advancing beyond the former five-turn limit", async () => {
+    let response;
+    for (let turn = 0; turn < 6; turn += 1) {
+      response = await request(app).post("/api/economy/turn").send(policies);
+      expect(response.status).toBe(200);
+    }
+
+    expect(response?.body.turn).toBe(7);
+  });
+
   it("returns a descriptive 400 error for invalid policy values", async () => {
     const response = await request(app)
       .post("/api/economy/turn")

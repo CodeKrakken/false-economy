@@ -45,15 +45,26 @@ function mockFetch(
   return fetchMock;
 }
 
+async function flushPendingPromises() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe("Economy Simulator interface", () => {
   it("shows loading feedback before the initial economy arrives", async () => {
+    vi.useFakeTimers();
     let resolveRequest!: (response: Response) => void;
-    mockFetch(
+    const fetchMock = mockFetch(
       () =>
         new Promise((resolve) => {
           resolveRequest = resolve;
@@ -63,9 +74,19 @@ describe("Economy Simulator interface", () => {
     render(<App />);
 
     expect(screen.getByRole("status").textContent).toMatch(/loading/i);
-    resolveRequest(jsonResponse(initialEconomy));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByText("$1,000")).toBeTruthy();
+    await act(async () => {
+      resolveRequest(jsonResponse(initialEconomy));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByText("$1,000")).toBeTruthy();
   });
 
   it("loads the dashboard and exposes accessible policy labels", async () => {
@@ -77,10 +98,12 @@ describe("Economy Simulator interface", () => {
     expect(screen.getByText("$1,000")).toBeTruthy();
     expect(screen.getByText("2.0%")).toBeTruthy();
     expect(screen.getByText("5.0%")).toBeTruthy();
-    expect(screen.getByText("Turn 1 of 5")).toBeTruthy();
+    expect(screen.getByText("Turn 1")).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /tax rate/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /public spending/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /interest rate/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /current outlook/i })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Resilient economy");
   });
 
   it("updates policy inputs from user changes", async () => {
@@ -104,50 +127,78 @@ describe("Economy Simulator interface", () => {
     expect((interestRate as HTMLInputElement).value).toBe("4");
   });
 
-  it("allows advancing a turn from the keyboard", async () => {
-    const user = userEvent.setup();
-    const fetchMock = mockFetch(async (input) => {
-      if (String(input).endsWith("/api/economy/turn")) {
-        return jsonResponse(advancedEconomy);
-      }
-      return jsonResponse(initialEconomy);
-    });
-
-    render(<App />);
-    await screen.findByText("$1,000");
-    const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
-    taxRate.focus();
-    await user.keyboard("{Enter}");
-
-    expect(await screen.findByText("$1,025")).toBeTruthy();
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/api/economy/turn"),
-    )).toBe(true);
-  });
-
-  it("submits selected policies and displays the returned economy", async () => {
-    const user = userEvent.setup();
+  it("advances once per second with current policies and no turn limit", async () => {
+    vi.useFakeTimers();
+    let turn = 1;
+    let inflation = initialEconomy.inflation;
     const fetchMock = mockFetch(async (input, init) => {
       if (String(input).endsWith("/api/economy/turn")) {
-        return jsonResponse(advancedEconomy);
+        turn += 1;
+        const submittedPolicies = JSON.parse(String(init?.body)) as typeof policies;
+        return jsonResponse({ ...initialEconomy, ...submittedPolicies, turn, inflation });
       }
       return jsonResponse(initialEconomy);
     });
 
     render(<App />);
-    await screen.findByText("$1,000");
-    const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
-    await user.clear(taxRate);
-    await user.type(taxRate, "30");
-    const publicSpending = screen.getByRole("spinbutton", { name: /public spending/i });
-    await user.clear(publicSpending);
-    await user.type(publicSpending, "250");
-    const interestRate = screen.getByRole("spinbutton", { name: /interest rate/i });
-    await user.clear(interestRate);
-    await user.type(interestRate, "4");
-    await user.click(screen.getByRole("button", { name: /advance turn/i }));
+    await flushPendingPromises();
+    expect(screen.getByText("Turn 1")).toBeTruthy();
 
-    expect(await screen.findByText("$1,025")).toBeTruthy();
+    fireEvent.change(screen.getByRole("spinbutton", { name: /tax rate/i }), {
+      target: { value: "35" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999);
+    });
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/economy/turn"),
+    )).toHaveLength(0);
+
+    inflation = 9;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.getByText("Turn 2")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Economy under pressure");
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
+      taxRate: 35,
+    });
+
+    inflation = 2;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(screen.getByText("Turn 8")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Resilient economy");
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/economy/turn"),
+    )).toHaveLength(7);
+  });
+
+  it("submits selected policies on the next timed turn", async () => {
+    vi.useFakeTimers();
+    const fetchMock = mockFetch(async (input, init) => {
+      if (String(input).endsWith("/api/economy/turn")) {
+        const submittedPolicies = JSON.parse(String(init?.body)) as typeof policies;
+        return jsonResponse({ ...advancedEconomy, ...submittedPolicies });
+      }
+      return jsonResponse(initialEconomy);
+    });
+
+    render(<App />);
+    await flushPendingPromises();
+    const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
+    fireEvent.change(taxRate, { target: { value: "30" } });
+    const publicSpending = screen.getByRole("spinbutton", { name: /public spending/i });
+    fireEvent.change(publicSpending, { target: { value: "250" } });
+    const interestRate = screen.getByRole("spinbutton", { name: /interest rate/i });
+    fireEvent.change(interestRate, { target: { value: "4" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(screen.getByText("$1,025")).toBeTruthy();
     const turnRequest = fetchMock.mock.calls.find(([input]) =>
       String(input).endsWith("/api/economy/turn"),
     );
@@ -171,11 +222,9 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     await screen.findByText("$1,000");
-    await user.click(screen.getByRole("button", { name: /advance turn/i }));
-    await screen.findByText("$1,025");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
-    expect(await screen.findByText("Turn 1 of 5")).toBeTruthy();
+    expect(await screen.findByText("Turn 1")).toBeTruthy();
     expect((screen.getByRole("spinbutton", { name: /tax rate/i }) as HTMLInputElement).value)
       .toBe("25");
     expect((screen.getByRole("spinbutton", { name: /public spending/i }) as HTMLInputElement).value)
@@ -187,8 +236,8 @@ describe("Economy Simulator interface", () => {
     )).toBe(true);
   });
 
-  it("prevents duplicate turn submissions while a request is pending", async () => {
-    const user = userEvent.setup();
+  it("does not overlap timed turns while a request is pending", async () => {
+    vi.useFakeTimers();
     let resolveTurn!: (response: Response) => void;
     const fetchMock = mockFetch(async (input) => {
       if (String(input).endsWith("/api/economy/turn")) {
@@ -200,42 +249,32 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("$1,000");
-    const advanceButton = screen.getByRole("button", { name: /advance turn/i });
-    await user.click(advanceButton);
+    await flushPendingPromises();
+    const resetButton = screen.getByRole("button", { name: /reset game/i });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+      fireEvent.click(resetButton);
+    });
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/economy/turn"),
+    )).toHaveLength(1);
+    expect((resetButton as HTMLButtonElement).disabled).toBe(true);
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).endsWith("/api/economy/reset"),
+    )).toBe(false);
 
-    expect((advanceButton as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(fetchMock.mock.calls.filter(([input]) =>
       String(input).endsWith("/api/economy/turn"),
     )).toHaveLength(1);
 
     resolveTurn(jsonResponse(advancedEconomy));
-    await screen.findByText("$1,025");
-  });
-
-  it("shows a final assessment and disables advancing after turn five", async () => {
-    const user = userEvent.setup();
-    let economy = { ...initialEconomy };
-    mockFetch(async (input) => {
-      if (String(input).endsWith("/api/economy/turn")) {
-        economy = { ...economy, turn: economy.turn + 1 };
-      } else if (String(input).endsWith("/api/economy/reset")) {
-        economy = { ...initialEconomy };
-      }
-      return jsonResponse(economy);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
-
-    render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    for (let turn = 1; turn < 5; turn += 1) {
-      await user.click(screen.getByRole("button", { name: /advance turn/i }));
-      await screen.findByText(`Turn ${turn + 1} of 5`);
-    }
-
-    expect(await screen.findByRole("heading", { name: /final assessment/i })).toBeTruthy();
-    expect(screen.getByText(/resilient economy/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /advance turn/i })).toHaveProperty("disabled", true);
-    expect(screen.getByText(/inflation.*5%.*unemployment.*8%.*GDP.*treasury/i)).toBeTruthy();
   });
 
   it("shows an API error when the initial economy cannot be loaded", async () => {
@@ -245,6 +284,19 @@ describe("Economy Simulator interface", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Service unavailable");
+  });
+
+  it("does not start the timed loop when the initial load fails", async () => {
+    vi.useFakeTimers();
+    const fetchMock = mockFetch(async () => jsonResponse({ error: "Unavailable" }, 503));
+
+    render(<App />);
+    await flushPendingPromises();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses the status fallback when an error response has no string message", async () => {
@@ -332,7 +384,7 @@ describe("Economy Simulator interface", () => {
   });
 
   it("shows an API error when advancing a turn fails", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     mockFetch(async (input) => {
       if (String(input).endsWith("/api/economy/turn")) {
         return jsonResponse({ error: "taxRate must be between 0 and 60." }, 400);
@@ -341,16 +393,18 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    await user.click(screen.getByRole("button", { name: /advance turn/i }));
+    await flushPendingPromises();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
-    const alert = await screen.findByRole("alert");
+    const alert = screen.getByRole("alert");
     expect(alert.textContent).toContain("taxRate must be between");
-    expect(screen.getByText("Turn 1 of 5")).toBeTruthy();
+    expect(screen.getByText("Turn 1")).toBeTruthy();
   });
 
   it("uses a fallback message for a non-Error turn failure", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     mockFetch(async (input) => {
       if (String(input).endsWith("/api/economy/turn")) {
         return Promise.reject("offline");
@@ -359,10 +413,12 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    await user.click(screen.getByRole("button", { name: /advance turn/i }));
+    await flushPendingPromises();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
 
-    expect((await screen.findByRole("alert")).textContent).toContain(
+    expect(screen.getByRole("alert").textContent).toContain(
       "Unable to advance the economy.",
     );
   });
@@ -377,7 +433,7 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1 of 5");
+    await screen.findByText("Turn 1");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
@@ -395,38 +451,10 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1 of 5");
+    await screen.findByText("Turn 1");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain("Reset unavailable");
-  });
-
-  it("does not send a reset while another request holds the request lock", async () => {
-    let resolveTurn!: (response: Response) => void;
-    const fetchMock = mockFetch(async (input) => {
-      if (String(input).endsWith("/api/economy/turn")) {
-        return new Promise((resolve) => {
-          resolveTurn = resolve;
-        });
-      }
-      return jsonResponse(initialEconomy);
-    });
-
-    render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    const advanceButton = screen.getByRole("button", { name: /advance turn/i });
-    const resetButton = screen.getByRole("button", { name: /reset game/i });
-    act(() => {
-      fireEvent.click(advanceButton);
-      fireEvent.click(resetButton);
-    });
-
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).endsWith("/api/economy/reset"),
-    )).toBe(false);
-
-    resolveTurn(jsonResponse(advancedEconomy));
-    await screen.findByText("$1,025");
   });
 
   it("activates the retry control after the initial request fails", async () => {
@@ -446,49 +474,17 @@ describe("Economy Simulator interface", () => {
     expect(reload).toHaveBeenCalledOnce();
   });
 
-  it("shows the strained assessment when the completed economy misses its targets", async () => {
-    const user = userEvent.setup();
-    let economy = { ...initialEconomy, inflation: -1 };
-    mockFetch(async (input) => {
-      if (String(input).endsWith("/api/economy/turn")) {
-        economy = { ...economy, turn: economy.turn + 1, gdp: 900 };
-      }
-      return jsonResponse(economy);
+  it("clears the timed loop when the dashboard unmounts", async () => {
+    vi.useFakeTimers();
+    const fetchMock = mockFetch(async () => jsonResponse(initialEconomy));
+
+    const { unmount } = render(<App />);
+    await flushPendingPromises();
+    unmount();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
     });
-
-    render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    for (let turn = 1; turn < 5; turn += 1) {
-      await user.click(screen.getByRole("button", { name: /advance turn/i }));
-      await screen.findByText(`Turn ${turn + 1} of 5`);
-    }
-
-    expect(await screen.findByText("Economy under pressure")).toBeTruthy();
-  });
-
-  it("ignores a form submission while an advance request is pending", async () => {
-    const user = userEvent.setup();
-    let resolveTurn!: (response: Response) => void;
-    const fetchMock = mockFetch(async (input) => {
-      if (String(input).endsWith("/api/economy/turn")) {
-        return new Promise((resolve) => {
-          resolveTurn = resolve;
-        });
-      }
-      return jsonResponse(initialEconomy);
-    });
-
-    render(<App />);
-    await screen.findByText("Turn 1 of 5");
-    const form = screen.getByRole("button", { name: /advance turn/i }).closest("form");
-    await user.click(screen.getByRole("button", { name: /advance turn/i }));
-    fireEvent.submit(form!);
-
-    expect(fetchMock.mock.calls.filter(([input]) =>
-      String(input).endsWith("/api/economy/turn"),
-    )).toHaveLength(1);
-
-    resolveTurn(jsonResponse(advancedEconomy));
-    await screen.findByText("$1,025");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
