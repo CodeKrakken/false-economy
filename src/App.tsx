@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import type { Economy } from "./economy.js";
 import "./styles.css";
 
 type Policies = Pick<Economy, "taxRate" | "publicSpending" | "interestRate">;
+type PolicyInputs = { [Key in keyof Policies]: string };
 type RequestAction = "advance" | "reset" | null;
 const TURN_INTERVAL_MS = 1000;
 
@@ -30,11 +32,19 @@ async function requestEconomy(path: string, init?: RequestInit): Promise<Economy
   return result as Economy;
 }
 
-function policiesFrom(economy: Economy): Policies {
+function policiesFrom(economy: Economy): PolicyInputs {
   return {
-    taxRate: economy.taxRate,
-    publicSpending: economy.publicSpending,
-    interestRate: economy.interestRate,
+    taxRate: String(economy.taxRate),
+    publicSpending: String(economy.publicSpending),
+    interestRate: String(economy.interestRate),
+  };
+}
+
+function numericPoliciesFrom(inputs: PolicyInputs): Policies {
+  return {
+    taxRate: Number(inputs.taxRate),
+    publicSpending: Number(inputs.publicSpending),
+    interestRate: Number(inputs.interestRate),
   };
 }
 
@@ -50,14 +60,26 @@ function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+function handlePolicyKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key !== "Enter") return;
+
+  const input = event.currentTarget;
+  if (input.value === "" || !input.validity.valid) {
+    event.preventDefault();
+    return;
+  }
+
+  input.blur();
+}
+
 function App() {
   const [economy, setEconomy] = useState<Economy | null>(null);
-  const [policies, setPolicies] = useState<Policies | null>(null);
+  const [policies, setPolicies] = useState<PolicyInputs | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeRequest, setActiveRequest] = useState<RequestAction>(null);
   const [error, setError] = useState<string | null>(null);
   const requestLocked = useRef(false);
-  const policiesRef = useRef<Policies | null>(policies);
+  const policiesRef = useRef<PolicyInputs | null>(policies);
   const isReady = !isLoading && economy !== null && policies !== null;
   policiesRef.current = policies;
 
@@ -100,7 +122,7 @@ function App() {
       const result = await requestEconomy("/api/economy/turn", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentPolicies),
+        body: JSON.stringify(numericPoliciesFrom(currentPolicies)),
       });
       setEconomy(result);
     } catch (requestError) {
@@ -177,7 +199,7 @@ function App() {
   function updatePolicy(field: keyof Policies, value: string) {
     setPolicies((current) => ({
       ...current!,
-      [field]: value === "" ? 0 : Number(value),
+      [field]: value,
     }));
   }
 
@@ -293,6 +315,7 @@ function App() {
                     step="any"
                     value={policies.taxRate}
                     onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
                     disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">0—60%</span>
@@ -309,6 +332,7 @@ function App() {
                     step="any"
                     value={policies.publicSpending}
                     onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
                     disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">$0—$500</span>
@@ -325,6 +349,7 @@ function App() {
                     step="any"
                     value={policies.interestRate}
                     onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
                     disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">0—20%</span>

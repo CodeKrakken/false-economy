@@ -114,17 +114,45 @@ describe("Economy Simulator interface", () => {
 
     const taxRate = await screen.findByRole("spinbutton", { name: /tax rate/i });
     await user.clear(taxRate);
+    expect((taxRate as HTMLInputElement).value).toBe("");
     await user.type(taxRate, "35");
     const publicSpending = screen.getByRole("spinbutton", { name: /public spending/i });
     await user.clear(publicSpending);
+    expect((publicSpending as HTMLInputElement).value).toBe("");
     await user.type(publicSpending, "250");
     const interestRate = screen.getByRole("spinbutton", { name: /interest rate/i });
     await user.clear(interestRate);
+    expect((interestRate as HTMLInputElement).value).toBe("");
+    await user.type(interestRate, "0");
+    expect((interestRate as HTMLInputElement).value).toBe("0");
+    await user.clear(interestRate);
+    expect((interestRate as HTMLInputElement).value).toBe("");
     await user.type(interestRate, "4");
 
     expect((taxRate as HTMLInputElement).value).toBe("35");
     expect((publicSpending as HTMLInputElement).value).toBe("250");
     expect((interestRate as HTMLInputElement).value).toBe("4");
+  });
+
+  it("keeps focus on empty or invalid inputs and blurs valid values on Enter", async () => {
+    const user = userEvent.setup();
+    mockFetch(async () => jsonResponse(initialEconomy));
+
+    render(<App />);
+    const taxRate = await screen.findByRole("spinbutton", { name: /tax rate/i });
+
+    taxRate.focus();
+    await user.clear(taxRate);
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(taxRate);
+
+    fireEvent.change(taxRate, { target: { value: "99" } });
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(taxRate);
+
+    fireEvent.change(taxRate, { target: { value: "25" } });
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).not.toBe(taxRate);
   });
 
   it("advances once per second with current policies and no turn limit", async () => {
@@ -189,7 +217,7 @@ describe("Economy Simulator interface", () => {
     render(<App />);
     await flushPendingPromises();
     const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
-    fireEvent.change(taxRate, { target: { value: "30" } });
+    fireEvent.change(taxRate, { target: { value: "" } });
     const publicSpending = screen.getByRole("spinbutton", { name: /public spending/i });
     fireEvent.change(publicSpending, { target: { value: "250" } });
     const interestRate = screen.getByRole("spinbutton", { name: /interest rate/i });
@@ -199,12 +227,14 @@ describe("Economy Simulator interface", () => {
     });
 
     expect(screen.getByText("$1,025")).toBeTruthy();
+    expect((taxRate as HTMLInputElement).value).toBe("");
     const turnRequest = fetchMock.mock.calls.find(([input]) =>
       String(input).endsWith("/api/economy/turn"),
     );
     expect(turnRequest?.[1]?.method).toBe("POST");
     expect(JSON.parse(String(turnRequest?.[1]?.body))).toStrictEqual({
       ...policies,
+      taxRate: 0,
     });
   });
 
