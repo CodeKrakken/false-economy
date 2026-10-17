@@ -2,27 +2,24 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
+import { createInitialEconomy } from "../src/economy.js";
 
-const initialEconomy = {
-  turn: 1,
-  gdp: 1000,
-  inflation: 2,
-  unemployment: 5,
-  treasury: 500,
-  taxRate: 25,
-  publicSpending: 200,
-  interestRate: 3,
-};
+const initialEconomy = createInitialEconomy();
 
 const policies = {
   taxRate: 30,
   publicSpending: 250,
   interestRate: 4,
+  minimumWage: 12,
+  tariffRate: 5,
+  energySubsidy: 0,
 };
 
 const advancedEconomy = {
+  ...initialEconomy,
   turn: 2,
   gdp: 1025,
+  growthRate: 2.5,
   inflation: 1.85,
   unemployment: 4.75,
   treasury: 550,
@@ -105,8 +102,15 @@ describe("Economy Simulator interface", () => {
     expect(screen.getByRole("spinbutton", { name: /tax rate/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /public spending/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /interest rate/i })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: /minimum wage/i })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: /tariff rate/i })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: /energy subsidy/i })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /current outlook/i })).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain("Resilient economy");
+    expect(screen.getByText("2.0% growth")).toBeTruthy();
+    expect(screen.getByText(/Treasury adviser:/i)).toBeTruthy();
+    expect(screen.getByText(/Political adviser:/i)).toBeTruthy();
+    expect(screen.getByText("No milestones recorded yet.")).toBeTruthy();
   });
 
   it("updates policy inputs from user changes", async () => {
@@ -131,10 +135,218 @@ describe("Economy Simulator interface", () => {
     await user.clear(interestRate);
     expect((interestRate as HTMLInputElement).value).toBe("");
     await user.type(interestRate, "4");
+    const minimumWage = screen.getByRole("spinbutton", { name: /minimum wage/i });
+    await user.clear(minimumWage);
+    await user.type(minimumWage, "15");
+    const tariffRate = screen.getByRole("spinbutton", { name: /tariff rate/i });
+    await user.clear(tariffRate);
+    await user.type(tariffRate, "10");
+    const energySubsidy = screen.getByRole("spinbutton", { name: /energy subsidy/i });
+    await user.clear(energySubsidy);
+    await user.type(energySubsidy, "20");
 
     expect((taxRate as HTMLInputElement).value).toBe("35");
     expect((publicSpending as HTMLInputElement).value).toBe("250");
     expect((interestRate as HTMLInputElement).value).toBe("4");
+    expect((minimumWage as HTMLInputElement).value).toBe("15");
+    expect((tariffRate as HTMLInputElement).value).toBe("10");
+    expect((energySubsidy as HTMLInputElement).value).toBe("20");
+  });
+
+  it("shows warnings when indicators approach crisis conditions", async () => {
+    const pressured = {
+      ...initialEconomy,
+      inflation: 6,
+      unemployment: 9,
+      treasury: -1,
+      gdp: 550,
+      population: 500_000,
+      approval: 30,
+      unrest: 60,
+    };
+    mockFetch(async () => jsonResponse(pressured));
+
+    render(<App />);
+
+    expect((await screen.findByRole("region", { name: /warnings/i })).textContent)
+      .toContain("Low approval and high unrest");
+    expect(screen.getByText(/GDP is close to collapse/i)).toBeTruthy();
+  });
+
+  it("lets the player resolve a pending energy event", async () => {
+    const user = userEvent.setup();
+    const pendingEconomy = {
+      ...initialEconomy,
+      pendingEvent: {
+        type: "energyShock" as const,
+        title: "Energy prices jump",
+        description: "A global supply squeeze pushes household energy costs higher.",
+        requiresDecision: true,
+      },
+    };
+    const resolvedEconomy = { ...pendingEconomy, pendingEvent: null, treasury: 400 };
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/event")) return jsonResponse(resolvedEconomy);
+      return jsonResponse(pendingEconomy);
+    });
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: /energy prices jump/i })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+
+    expect(await screen.findByText("$400")).toBeTruthy();
+    const decisionCall = fetchMock.mock.calls.find(([input]) =>
+      String(input).endsWith("/api/economy/event"),
+    );
+    expect(JSON.parse(String(decisionCall?.[1]?.body))).toStrictEqual({ choice: "subsidize" });
+  });
+
+  it("lets the player pass energy costs through to households", async () => {
+    const user = userEvent.setup();
+    const pendingEconomy = {
+      ...initialEconomy,
+      pendingEvent: {
+        type: "energyShock" as const,
+        title: "Energy prices jump",
+        description: "A global supply squeeze pushes household energy costs higher.",
+        requiresDecision: true,
+      },
+    };
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/event")) {
+        return jsonResponse({ ...pendingEconomy, pendingEvent: null });
+      }
+      return jsonResponse(pendingEconomy);
+    });
+
+    render(<App />);
+    await screen.findByRole("heading", { name: /energy prices jump/i });
+    await user.click(screen.getByRole("button", { name: /pass costs through/i }));
+
+    const decisionCall = fetchMock.mock.calls.find(([input]) =>
+      String(input).endsWith("/api/economy/event"),
+    );
+    expect(JSON.parse(String(decisionCall?.[1]?.body))).toStrictEqual({ choice: "passThrough" });
+  });
+
+  it("shows event decision errors from the server", async () => {
+    const user = userEvent.setup();
+    const pendingEconomy = {
+      ...initialEconomy,
+      pendingEvent: {
+        type: "energyShock" as const,
+        title: "Energy prices jump",
+        description: "A global supply squeeze pushes household energy costs higher.",
+        requiresDecision: true,
+      },
+    };
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/event")) {
+        return jsonResponse({ error: "Decision unavailable" }, 503);
+      }
+      return jsonResponse(pendingEconomy);
+    });
+
+    render(<App />);
+    await screen.findByRole("heading", { name: /energy prices jump/i });
+    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("Decision unavailable");
+  });
+
+  it("uses a fallback message for a non-Error event request failure", async () => {
+    const user = userEvent.setup();
+    const pendingEconomy = {
+      ...initialEconomy,
+      pendingEvent: {
+        type: "energyShock" as const,
+        title: "Energy prices jump",
+        description: "A global supply squeeze pushes household energy costs higher.",
+        requiresDecision: true,
+      },
+    };
+    mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/event")) return Promise.reject("offline");
+      return jsonResponse(pendingEconomy);
+    });
+
+    render(<App />);
+    await screen.findByRole("heading", { name: /energy prices jump/i });
+    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Unable to apply the event decision.",
+    );
+  });
+
+  it("ignores a duplicate event decision while the first is pending", async () => {
+    let resolveDecision!: (response: Response) => void;
+    const pendingEconomy = {
+      ...initialEconomy,
+      pendingEvent: {
+        type: "energyShock" as const,
+        title: "Energy prices jump",
+        description: "A global supply squeeze pushes household energy costs higher.",
+        requiresDecision: true,
+      },
+    };
+    const fetchMock = mockFetch(async (input) => {
+      if (String(input).endsWith("/api/economy/event")) {
+        return new Promise((resolve) => {
+          resolveDecision = resolve;
+        });
+      }
+      return jsonResponse(pendingEconomy);
+    });
+
+    render(<App />);
+    await screen.findByRole("heading", { name: /energy prices jump/i });
+    const subsidize = screen.getByRole("button", { name: /subsidize household bills/i });
+    const passThrough = screen.getByRole("button", { name: /pass costs through/i });
+    act(() => {
+      fireEvent.click(subsidize);
+      fireEvent.click(passThrough);
+    });
+
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/economy/event"),
+    )).toHaveLength(1);
+    resolveDecision(jsonResponse({ ...pendingEconomy, pendingEvent: null }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  it("shows achievements and the final report after a game outcome", async () => {
+    const completedEconomy = {
+      ...initialEconomy,
+      achievements: ["balancedBudget", "priceStability"],
+      outcome: {
+        kind: "defeat" as const,
+        reason: "A fiscal crisis ends the term.",
+        endedTurn: 4,
+        report: {
+          reason: "A fiscal crisis ends the term.",
+          gdpChange: -100,
+          inflationChange: 3,
+          treasuryChange: -1200,
+          populationChange: -5000,
+          approval: 28,
+          unrest: 74,
+          history: [{ turn: 3, type: "event" as const, text: "Tax windfall", eventType: "taxWindfall" as const }],
+        },
+      },
+    };
+    mockFetch(async () => jsonResponse(completedEconomy));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: /final report/i })).toBeTruthy();
+    expect(screen.getByText(/A fiscal crisis ends the term/i)).toBeTruthy();
+    expect(screen.getByText("Balanced budget")).toBeTruthy();
+    expect(screen.getByText("Price stability")).toBeTruthy();
+    expect(screen.getByText(/Population change/i)).toBeTruthy();
   });
 
   it("keeps focus on empty or invalid inputs and blurs valid values on Enter", async () => {

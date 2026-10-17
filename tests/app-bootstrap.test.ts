@@ -38,6 +38,9 @@ describe("server bootstrap", () => {
       advanceTurn: () => {
         throw new Error("Unexpected simulation failure");
       },
+      resolveEventDecision: () => {
+        throw new Error("Unexpected event failure");
+      },
     }));
 
     try {
@@ -64,6 +67,11 @@ describe("server bootstrap", () => {
         .post("/api/economy/turn")
         .send(policies);
       expect(unexpectedTurnError.status).toBe(500);
+
+      const unexpectedEventError = await request(app)
+        .post("/api/economy/event")
+        .send({ choice: "subsidize" });
+      expect(unexpectedEventError.status).toBe(500);
 
       vi.doUnmock("../src/economy.js");
       const noClientRoot = mkdtempSync(join(tmpdir(), "false-economy-no-client-"));

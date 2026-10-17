@@ -1,14 +1,16 @@
-# Economy Simulator
+# False Economy
 
-A small full-stack policy simulator for exploring how tax, public spending, and interest-rate choices affect a simplified national economy over a five-turn cycle. The browser presents the current indicators and submits policy choices; the server owns all economic calculations and state.
+A satirical, deterministic policy-strategy game about the trade-offs behind taxation, public services, monetary policy, wages, trade, and energy costs. The live simulation advances once per second until a government completes its term or reaches a defined defeat condition.
 
 ## Features
 
-- GDP, inflation, unemployment, treasury, and turn dashboard.
-- Accessible policy inputs with server-side validation.
-- Five-turn game cycle, reset action, and a final assessment with visible thresholds.
-- Express JSON API and in-memory game state.
-- Responsive React interface, with no UI component library.
+- Six policy levers with bounded inputs and immediate, delayed, and distributional effects.
+- GDP, growth, inflation, unemployment, treasury, debt, population, wellbeing, approval, and unrest.
+- Separate worker, business, and public-sector approval.
+- Scheduled public-investment returns and interval-based economic/political events.
+- State-based newspaper headlines, treasury and political advisers, warnings, milestones, and an end-of-term report.
+- Configurable term and defeat thresholds, plus grace periods for recoverable crises.
+- Responsive React dashboard and Express JSON API; the server owns game state and calculations.
 
 ## Tech Stack
 
@@ -16,14 +18,7 @@ A small full-stack policy simulator for exploring how tax, public spending, and 
 - React 19, Vite 8.
 - Vitest, Supertest, React Testing Library, user-event, and jsdom.
 
-## Requirements
-
-- Node.js 24.15 or newer. The project was verified with Node.js 24.20.0.
-- npm 11 or newer. The project was verified with npm 11.19.0.
-
 ## Install And Run
-
-From the repository root:
 
 ```sh
 npm ci
@@ -32,128 +27,91 @@ npm ci
 For local development, run the API and frontend in separate terminals:
 
 ```sh
-npm run dev:server
-```
-
-```sh
+PORT=3000 npm run dev:server
 npm run dev
 ```
 
 Open <http://localhost:5173/>. Vite proxies `/api` requests to the backend at `http://localhost:3000`.
 
-Run all backend and frontend tests:
-
 ```sh
 npm test
-```
-
-Build the backend and production frontend:
-
-```sh
+npm run test:coverage
 npm run build
 ```
 
-Run the built application from the repository root:
-
-```sh
-npm start
-```
-
-Open <http://localhost:3000/>. Set `PORT` to use a different server port, for example `PORT=4000 npm start` on Linux or macOS.
+Run a production build with `npm start`; Express serves the API and built frontend together on port 8080 by default. Set `PORT` to choose another port. The game state is in memory and resets when the server restarts. It is a single-process demo, not a multi-user persistent service.
 
 ## API
 
-All routes use JSON. The server starts with this economy:
-
-```json
-{
-	"turn": 1,
-	"gdp": 1000,
-	"inflation": 2,
-	"unemployment": 5,
-	"treasury": 500,
-	"taxRate": 25,
-	"publicSpending": 200,
-	"interestRate": 3
-}
-```
-
 ### `GET /api/economy`
 
-Returns the current economy.
-
-```sh
-curl http://localhost:3000/api/economy
-```
+Returns the full current game state, including indicators, group approval, pending effects/events, history, achievements, configurable rules, and any outcome report.
 
 ### `POST /api/economy/turn`
 
-Advances one turn using all three required policy values. Ranges are tax rate `0–60`, public spending `0–500`, and interest rate `0–20`.
+Advances one turn. `taxRate`, `publicSpending`, and `interestRate` are required. The other policy fields are optional for compatibility and retain their current values when omitted.
+
+| Policy | Allowed range | Unit |
+| --- | ---: | --- |
+| `taxRate` | 0–60 | percent |
+| `publicSpending` | 0–500 | model units per turn |
+| `interestRate` | 0–20 | percent |
+| `minimumWage` | 0–30 | model currency per hour |
+| `tariffRate` | 0–40 | percent |
+| `energySubsidy` | 0–300 | model units per turn |
+
+Example:
 
 ```sh
 curl -X POST http://localhost:3000/api/economy/turn \
-	-H 'Content-Type: application/json' \
-	-d '{"taxRate":30,"publicSpending":250,"interestRate":4}'
+  -H 'Content-Type: application/json' \
+  -d '{"taxRate":30,"publicSpending":250,"interestRate":4,"minimumWage":15,"tariffRate":8,"energySubsidy":50}'
 ```
 
-Example response:
+Invalid or non-finite values return HTTP `400` with a descriptive JSON error.
 
-```json
-{
-	"turn": 2,
-	"gdp": 1025,
-	"inflation": 1.85,
-	"unemployment": 4.75,
-	"treasury": 550,
-	"taxRate": 30,
-	"publicSpending": 250,
-	"interestRate": 4
-}
-```
+### `POST /api/economy/event`
 
-Invalid, missing, or non-numeric policies return HTTP `400` with a descriptive JSON error, for example:
-
-```json
-{"error":"taxRate must be a finite number between 0 and 60."}
-```
+Resolves a pending energy-price shock with `{"choice":"subsidize"}` or `{"choice":"passThrough"}`. The endpoint rejects choices when no decision is pending.
 
 ### `POST /api/economy/reset`
 
-Restores and returns the initial economy.
+Restores the initial economy, rules, history, and achievement state.
 
-```sh
-curl -X POST http://localhost:3000/api/economy/reset
-```
+## Model Assumptions
 
-Unknown API routes return HTTP `404` with a JSON error.
+The model is deterministic and illustrative, not a forecast. Values and thresholds below are intentionally small and tunable so cause and effect remain readable. Policy bounds are validated on every turn; calculated bounded indicators are clamped and non-finite states are rejected or safely normalized.
 
-## Economic Model
+### Policy And Indicator Effects
 
-The model is deterministic and intentionally illustrative rather than predictive. Policy values are bounded before a turn is calculated. Let `s` be public spending, `i` the interest rate, `t` the tax rate, and `G` the current GDP:
+Let `s` be public spending, `i` the interest rate, `t` the tax rate, `w` the minimum wage, `r` the tariff, `e` the energy subsidy, and `d` existing public debt. Baseline growth is `0.02 + (s - 200) / 10,000`. Lower rates below 3 and higher rates above 5 have small opposing growth effects; wage changes have a modest demand effect, very high wages and tariffs reduce growth, and debt above 1,000 reduces growth by 0.1 percentage points per additional 1,000 model units. GDP grows by that rate plus any due productivity effect.
 
-- GDP growth rate: `0.02 + (s - 200) / 10,000`; next GDP is current GDP multiplied by one plus that rate.
-- Inflation: previous inflation plus `s / 1,000` minus `i * 0.1`.
-- Unemployment: previous unemployment minus ten times the GDP growth rate, clamped to `0–100`.
-- Treasury: previous treasury plus `G * t / 100` minus public spending.
+- Inflation starts from its previous value, adds spending pressure (`s / 1,000`), subtracts `i * 0.1`, and adds tariff/high-wage pressure while subsidies reduce household energy-price pressure.
+- Unemployment moves opposite growth, with additional pressure from very high wages and rates; it is bounded to `0–100`.
+- Treasury changes by tax receipts (`current GDP * t / 100`) minus spending and subsidies. Deficits add debt; surpluses pay down up to one tenth of the current surplus.
+- Workers, businesses, and public-sector employees each have approval from `0–100`. Overall approval weights them `40% / 35% / 25%` respectively. These are illustrative weights, not claims about real-world influence.
+- Inflation, unemployment, spending, and subsidies affect wellbeing. Wellbeing and unrest affect a small population-growth rate; population cannot become negative.
+- Minimum-wage and tariff effects are stylized demand/cost/protection trade-offs. The model does not represent sectors, exchange rates, banking, expectations, or endogenous productivity beyond the scheduled investment effect.
 
-GDP and treasury cannot fall below zero, unemployment is clamped to `0–100`, and calculated indicators are kept finite. The model does not represent sector-level output, debt financing, expectations, time lags, or interactions between households and firms; each relationship is a simple linear rule chosen for clear, repeatable gameplay.
+Public spending of at least 350 schedules a productivity addition of `(spending - 300) * 0.2` for two turns later. Due entries are applied once and removed from the queue.
+
+### Events, Reporting, And Outcomes
+
+An event is considered every third turn, with a 40% chance. The random-number function is injectable into `advanceTurn` and `createApp` for deterministic tests. Events include energy shocks (player choice), recessions, public strikes, tax windfalls, trade disruptions, and borrowing shocks. Automatic effects and event descriptions are recorded in state history. Headlines are selected from the actual event and indicator thresholds; advisers use current fiscal, inflation, approval, and group data.
+
+The default rules are a 20-turn term; overthrow after two consecutive turns with approval below 25 and unrest at least 80; fiscal defeat after two consecutive turns with treasury below -1,000; economic collapse after three turns with GDP below 500; and immediate population-collapse defeat at zero. A government that reaches its term without defeat wins. Population collapse has priority over overthrow, fiscal crisis, economic collapse, then term completion. Rules can be overridden when constructing an initial economy. An unresolved event or final outcome pauses automatic progression.
+
+Achievements are state-earned and recorded once: non-deficit turn cash flow, inflation at or below 2%, surviving a recession through the following turn, completing the term, and wellbeing at least 65 while treasury remains non-negative. The final report records changes from the starting state and the actual policy/event history; it does not infer unsupported causal claims.
 
 ## Architecture
 
-- `src/economy.ts` contains the `Economy` type, initial values, policy validation, and deterministic turn calculation.
-- `src/app.ts` defines the Express API, holds the current economy in process memory, and serves `dist/client` when a production build is present.
-- `src/server.ts` starts the HTTP listener on `PORT` or `3000`.
-- `src/App.tsx` renders the client and calls the API; it contains no economic calculations.
-- `vite.config.ts` configures the React plugin, Vitest's jsdom environment, and the development `/api` proxy.
-
-The intended production deployment is one Node service: build the project, then run `npm start`. Express serves both the API and the built frontend from the same origin. A separate frontend host would need to proxy `/api` to the backend (or add an API base URL and configure backend CORS); that deployment mode is not configured here. Economy state is in memory and resets whenever the server restarts, so this setup is suitable for a small simulator/demo rather than durable multi-user sessions.
+- `src/economy.ts` defines typed state, policy validation, effects, events, reporting, achievements, and pure turn transitions.
+- `src/app.ts` provides the in-memory Express API and injectable random source.
+- `src/App.tsx` renders indicators, controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
+- `src/styles.css` provides the responsive editorial interface.
 
 ## Testing And Accessibility
 
-`npm test` runs three groups of tests:
+Economy tests exercise deterministic policy, event, delayed-effect, outcome, and achievement cases. Supertest covers the API contract and decision validation. React Testing Library and user-event cover the timed loop, policy editing, event choices, warnings, and reports. `npm run test:coverage` is expected to report 100% statements, branches, functions, and lines.
 
-- Economy unit tests cover initial values, deterministic turn results, policy effects, bounds, and invalid policies.
-- API tests use Supertest to cover state, reset, turn advancement, malformed requests, errors, and 404s.
-- UI tests use jsdom, React Testing Library, and user-event to cover loading, values, policy editing/submission, reset, completion, error states, and keyboard submission.
-
-The interface uses semantic headings and sections, a definition list for indicators, associated labels for all numeric inputs, native form submission and buttons, visible keyboard focus, and status/alert roles for asynchronous feedback. Policy controls include their allowed ranges and are disabled when a request is pending or the cycle is complete.
+The interface uses semantic sections and headings, labeled numeric controls with published ranges, keyboard-visible focus, status/alert regions, and responsive layouts. An open event pauses the timer until the player decides; a completed game stops normal progression.
