@@ -43,67 +43,6 @@ a:focus-visible {
   min-height: 100vh;
 }
 
-.masthead {
-  border-top: 7px solid var(--red);
-  border-bottom: 1px solid var(--ink);
-  background: var(--paper);
-}
-
-.masthead-inner {
-  display: flex;
-  width: min(1240px, calc(100% - 48px));
-  min-height: 82px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin: 0 auto;
-}
-
-.wordmark {
-  display: grid;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.wordmark-overline {
-  color: var(--red);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.wordmark-name {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 27px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.masthead-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--muted);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.live-indicator {
-  width: 8px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--red);
-  box-shadow: 0 0 0 4px rgba(227, 18, 11, 0.1);
-}
-
-.meta-divider {
-  width: 1px;
-  height: 14px;
-  background: var(--line);
-}
-
 .main-content {
   width: min(1240px, calc(100% - 48px));
   margin: 0 auto;
@@ -118,7 +57,7 @@ a:focus-visible {
   gap: 28px;
   margin-bottom: 30px;
   padding-bottom: 26px;
-  border-bottom: 4px double var(--ink);
+  border-bottom: 1px solid #000;
   animation: arrive 450ms ease-out both;
 }
 
@@ -199,7 +138,6 @@ h1 {
 .economy-section {
   min-width: 0;
   padding-top: 17px;
-  border-top: 2px solid var(--ink);
   animation: arrive 500ms 80ms ease-out both;
 }
 
@@ -220,13 +158,6 @@ h2 {
   font-size: 25px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.turn-count {
-  margin: 0 0 2px;
-  color: var(--muted);
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
 }
 
 .metrics-grid {
@@ -294,7 +225,6 @@ h2 {
   min-width: 0;
   padding: 21px 20px 23px;
   background: var(--wash);
-  border-top: 4px solid var(--red);
   animation: arrive 450ms 120ms ease-out both;
 }
 
@@ -341,7 +271,7 @@ h2 {
 .policy-section {
   margin-top: 34px;
   padding: 24px 0 27px;
-  border-top: 4px double var(--ink);
+  border-top: 1px solid #000;
   border-bottom: 1px solid var(--ink);
   animation-delay: 140ms;
 }
@@ -504,25 +434,6 @@ h2 {
 }
 
 @media (max-width: 560px) {
-  .masthead {
-    border-top-width: 5px;
-  }
-
-  .masthead-inner {
-    width: calc(100% - 32px);
-    min-height: 68px;
-    gap: 10px;
-  }
-
-  .masthead-meta {
-    gap: 7px;
-    font-size: 8px;
-  }
-
-  .wordmark-name {
-    font-size: 22px;
-  }
-
   .main-content {
     width: calc(100% - 28px);
     padding-top: 30px;
@@ -608,11 +519,6 @@ h2 {
 
   .assessment-result {
     font-size: 19px;
-  }
-
-  .turn-count {
-    margin-top: 4px;
-    font-size: 9px;
   }
 
   .policy-section {

@@ -99,7 +99,9 @@ describe("Economy Simulator interface", () => {
     expect(screen.getByText("$1,000")).toBeTruthy();
     expect(screen.getByText("2.0%")).toBeTruthy();
     expect(screen.getByText("5.0%")).toBeTruthy();
-    expect(screen.getByText("Turn 1")).toBeTruthy();
+    expect(screen.getByLabelText("Turn 1")).toBeTruthy();
+    expect(screen.queryByText("Turn 1")).toBeNull();
+    expect(screen.queryByText("Current turn")).toBeNull();
     expect(screen.getByRole("spinbutton", { name: /tax rate/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /public spending/i })).toBeTruthy();
     expect(screen.getByRole("spinbutton", { name: /interest rate/i })).toBeTruthy();
@@ -171,7 +173,7 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     await flushPendingPromises();
-    expect(screen.getByText("Turn 1")).toBeTruthy();
+    expect(screen.getByLabelText("Turn 1")).toBeTruthy();
 
     fireEvent.change(screen.getByRole("spinbutton", { name: /tax rate/i }), {
       target: { value: "35" },
@@ -187,7 +189,7 @@ describe("Economy Simulator interface", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
-    expect(screen.getByText("Turn 2")).toBeTruthy();
+    expect(screen.getByLabelText("Turn 2")).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain("Economy under pressure");
     expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
       taxRate: 35,
@@ -198,7 +200,7 @@ describe("Economy Simulator interface", () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
 
-    expect(screen.getByText("Turn 8")).toBeTruthy();
+    expect(screen.getByLabelText("Turn 8")).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain("Resilient economy");
     expect(fetchMock.mock.calls.filter(([input]) =>
       String(input).endsWith("/api/economy/turn"),
@@ -255,7 +257,7 @@ describe("Economy Simulator interface", () => {
     await screen.findByText("$1,000");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
-    expect(await screen.findByText("Turn 1")).toBeTruthy();
+    expect(await screen.findByLabelText("Turn 1")).toBeTruthy();
     expect((screen.getByRole("spinbutton", { name: /tax rate/i }) as HTMLInputElement).value)
       .toBe("25");
     expect((screen.getByRole("spinbutton", { name: /public spending/i }) as HTMLInputElement).value)
@@ -438,7 +440,7 @@ describe("Economy Simulator interface", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert.textContent).toContain("taxRate must be between");
-    expect(screen.getByText("Turn 1")).toBeTruthy();
+    expect(screen.getByLabelText("Turn 1")).toBeTruthy();
   });
 
   it("uses a fallback message for a non-Error turn failure", async () => {
@@ -471,7 +473,7 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1");
+    await screen.findByLabelText("Turn 1");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
@@ -489,7 +491,7 @@ describe("Economy Simulator interface", () => {
     });
 
     render(<App />);
-    await screen.findByText("Turn 1");
+    await screen.findByLabelText("Turn 1");
     await user.click(screen.getByRole("button", { name: /reset game/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain("Reset unavailable");
