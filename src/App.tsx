@@ -103,7 +103,6 @@ function App() {
         body: JSON.stringify(currentPolicies),
       });
       setEconomy(result);
-      setPolicies(policiesFrom(result));
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -294,7 +293,7 @@ function App() {
                     step="any"
                     value={policies.taxRate}
                     onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
-                    disabled={isBusy}
+                    disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">0—60%</span>
                 </div>
@@ -310,7 +309,7 @@ function App() {
                     step="any"
                     value={policies.publicSpending}
                     onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
-                    disabled={isBusy}
+                    disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">$0—$500</span>
                 </div>
@@ -326,7 +325,7 @@ function App() {
                     step="any"
                     value={policies.interestRate}
                     onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
-                    disabled={isBusy}
+                    disabled={activeRequest === "reset"}
                   />
                   <span className="input-range">0—20%</span>
                 </div>

@@ -251,10 +251,15 @@ describe("Economy Simulator interface", () => {
     render(<App />);
     await flushPendingPromises();
     const resetButton = screen.getByRole("button", { name: /reset game/i });
+    const taxRate = screen.getByRole("spinbutton", { name: /tax rate/i });
+    taxRate.focus();
     act(() => {
       vi.advanceTimersByTime(1000);
       fireEvent.click(resetButton);
     });
+    expect((taxRate as HTMLInputElement).disabled).toBe(false);
+    fireEvent.change(taxRate, { target: { value: "35" } });
+    expect(document.activeElement).toBe(taxRate);
     expect(fetchMock.mock.calls.filter(([input]) =>
       String(input).endsWith("/api/economy/turn"),
     )).toHaveLength(1);
@@ -275,6 +280,8 @@ describe("Economy Simulator interface", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+    expect((taxRate as HTMLInputElement).value).toBe("35");
+    expect(document.activeElement).toBe(taxRate);
   });
 
   it("shows an API error when the initial economy cannot be loaded", async () => {
