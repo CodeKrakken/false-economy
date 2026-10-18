@@ -82,6 +82,14 @@ function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+function formatWage(value: number): string {
+  return `${new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value)}/hr`;
+}
+
 function formatPopulation(value: number): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
@@ -351,6 +359,11 @@ function App() {
                 <span className="metric-unit">WORKFORCE</span>
               </div>
               <div className="metric">
+                <dt>Average wage</dt>
+                <dd>{formatWage(economy.averageWage)}</dd>
+                <span className="metric-unit">HOURLY PAY</span>
+              </div>
+              <div className="metric">
                 <dt>Treasury</dt>
                 <dd>{formatMoney(economy.treasury)}</dd>
                 <span className="metric-unit">PUBLIC BALANCE</span>
@@ -374,6 +387,16 @@ function App() {
                 <dt>Wellbeing</dt>
                 <dd>{formatPercent(economy.wellbeing)}</dd>
                 <span className="metric-unit">CITIZEN INDEX</span>
+              </div>
+              <div className="metric">
+                <dt>Productive capacity</dt>
+                <dd>{formatMoney(economy.productiveCapacity)}</dd>
+                <span className="metric-unit">OUTPUT CEILING</span>
+              </div>
+              <div className="metric">
+                <dt>Resource reserves</dt>
+                <dd>{formatPercent(economy.resourceReserves)}</dd>
+                <span className="metric-unit">RESOURCE INDEX</span>
               </div>
               <div className="metric">
                 <dt>Social unrest</dt>

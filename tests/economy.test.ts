@@ -23,6 +23,7 @@ describe("createInitialEconomy", () => {
       publicSpending: 200,
       interestRate: 3,
       minimumWage: 12,
+      averageWage: 15,
       tariffRate: 5,
       energySubsidy: 0,
       approval: 60,
@@ -30,6 +31,8 @@ describe("createInitialEconomy", () => {
       population: 1_000_000,
       wellbeing: 60,
       unrest: 20,
+      productiveCapacity: 1600,
+      resourceReserves: 100,
       groups: { workers: 60, businesses: 60, publicSector: 60 },
       pendingEffects: [],
       pendingEvent: null,
@@ -85,6 +88,7 @@ describe("advanceTurn", () => {
       tariffRate: 10,
       energySubsidy: 25,
     });
+    expect(started.averageWage).toBe(15);
     expect(started.history).toHaveLength(1);
     expect(started.history[0]).toMatchObject({ turn: 1, type: "policy" });
     expect(advanceTurn(createInitialEconomy(), policies)).toStrictEqual(createInitialEconomy());
@@ -93,7 +97,7 @@ describe("advanceTurn", () => {
 
   it("advances one turn and applies policies and deterministic economic rules", () => {
     const nextEconomy = advanceTurn(runningEconomy(), policies);
-    expect(nextEconomy.growthRate).toBe(2.5);
+    expect(nextEconomy.growthRate).toBe(2.9);
     expect({
       turn: nextEconomy.turn,
       gdp: nextEconomy.gdp,
@@ -105,9 +109,9 @@ describe("advanceTurn", () => {
       interestRate: nextEconomy.interestRate,
     }).toStrictEqual({
       turn: 2,
-      gdp: 1025,
+      gdp: 1029.009,
       inflation: 1.85,
-      unemployment: 4.75,
+      unemployment: expect.closeTo(4.71),
       treasury: 550,
       taxRate: 30,
       publicSpending: 250,
@@ -137,6 +141,15 @@ describe("advanceTurn", () => {
       "Population is declining.",
       "Low approval and high unrest threaten the government.",
     ]);
+
+    const extremeButRecoverable = { ...initial, unrest: 100 };
+    expect(getEconomicWarnings(extremeButRecoverable)).toStrictEqual([]);
+    expect(advanceTurn(runningEconomy({ unrest: 100 }), policies, () => 1).overthrowRiskTurns).toBe(0);
+
+    const severeCrisis = { ...initial, approval: 55, unrest: 100, unemployment: 20 };
+    expect(getEconomicWarnings(severeCrisis)).toContain(
+      "Severe unrest and economic crisis put the government at risk of overthrow.",
+    );
   });
 
   it("gives fiscal and political advice based on actual risk indicators", () => {
@@ -158,11 +171,31 @@ describe("advanceTurn", () => {
     expect(politicalRisk.treasury).toMatch(/debt|deficit/i);
     expect(politicalRisk.political).toMatch(/overthrow/i);
 
+    const severeCrisis = getAdviserAdvice({
+      ...initial,
+      approval: 55,
+      unrest: 100,
+      unemployment: 20,
+    });
+    expect(severeCrisis.political).toMatch(/severe unrest.*overthrow/i);
+
     const groupRisk = getAdviserAdvice({
       ...initial,
       groups: { ...initial.groups, workers: 35 },
     });
-    expect(groupRisk.political).toMatch(/interest groups/i);
+    expect(groupRisk.political).toMatch(/household demand/i);
+
+    const businessRisk = getAdviserAdvice({
+      ...initial,
+      groups: { ...initial.groups, businesses: 35 },
+    });
+    expect(businessRisk.political).toMatch(/investment and hiring/i);
+
+    const publicServiceRisk = getAdviserAdvice({
+      ...initial,
+      groups: { ...initial.groups, publicSector: 35 },
+    });
+    expect(publicServiceRisk.political).toMatch(/public services.*living standards/i);
   });
 
   it("returns a new economy without mutating the input", () => {
@@ -213,6 +246,85 @@ describe("advanceTurn", () => {
     expect(highDebt.gdp).toBeLessThan(lowDebt.gdp);
   });
 
+  it("links demand, taxes, employment and wage pressure to economic output", () => {
+    const economy = runningEconomy();
+    const stimulus = advanceTurn(economy, {
+      ...policies,
+      taxRate: 20,
+      publicSpending: 400,
+      minimumWage: 12,
+    }, () => 1);
+    const austerity = advanceTurn(economy, {
+      ...policies,
+      taxRate: 40,
+      publicSpending: 0,
+      minimumWage: 12,
+    }, () => 1);
+    const highWages = advanceTurn(economy, {
+      ...policies,
+      minimumWage: 30,
+    }, () => 1);
+    const highUnemployment = advanceTurn(runningEconomy({ unemployment: 20 }), policies, () => 1);
+    const higherTaxes = advanceTurn(economy, {
+      ...policies,
+      taxRate: 60,
+    }, () => 1);
+    const revenueInRecession = advanceTurn(runningEconomy({ gdp: 500 }), policies, () => 1);
+
+    expect(stimulus.gdp).toBeGreaterThan(austerity.gdp);
+    expect(austerity.unemployment).toBeGreaterThan(stimulus.unemployment);
+    expect(highWages.groups.workers).toBeGreaterThan(highWages.groups.businesses);
+    expect(highUnemployment.groups.workers).toBeLessThan(economy.groups.workers);
+    expect(highWages.growthRate).toBeLessThan(
+      advanceTurn(economy, { ...policies, minimumWage: 12 }, () => 1).growthRate,
+    );
+    expect(higherTaxes.gdp).toBeLessThan(stimulus.gdp);
+    expect(revenueInRecession.treasury).toBeLessThan(
+      advanceTurn(economy, policies, () => 1).treasury,
+    );
+  });
+
+  it("invests in productive capacity after a delay and depletes resources", () => {
+    const economy = runningEconomy();
+    const investment = advanceTurn(economy, {
+      ...policies,
+      publicSpending: 400,
+    }, () => 1);
+    const waiting = advanceTurn(investment, policies, () => 1);
+    const due = advanceTurn(waiting, policies, () => 1);
+    const austerity = advanceTurn(economy, {
+      ...policies,
+      publicSpending: 0,
+    }, () => 1);
+    const profitableInvestment = advanceTurn(runningEconomy({
+      groups: { workers: 60, businesses: 80, publicSector: 60 },
+    }), { ...policies, publicSpending: 400 }, () => 1);
+    const weakInvestment = advanceTurn(runningEconomy({
+      groups: { workers: 60, businesses: 20, publicSector: 60 },
+    }), { ...policies, publicSpending: 400 }, () => 1);
+
+    expect(investment.productiveCapacity).toBe(economy.productiveCapacity);
+    expect(investment.pendingEffects).toStrictEqual([
+      { kind: "capacity", dueTurn: 4, amount: 19.9 },
+    ]);
+    expect(due.productiveCapacity).toBeGreaterThan(waiting.productiveCapacity);
+    expect(austerity.productiveCapacity).toBeLessThan(economy.productiveCapacity);
+    expect(investment.resourceReserves).toBeLessThan(economy.resourceReserves);
+    expect(profitableInvestment.pendingEffects[0].amount).toBeGreaterThan(
+      weakInvestment.pendingEffects[0].amount,
+    );
+  });
+
+  it("lets resource scarcity constrain output and increase production costs", () => {
+    const policies = { taxRate: 30, publicSpending: 250, interestRate: 4 };
+    const abundant = advanceTurn(runningEconomy({ resourceReserves: 100 }), policies, () => 1);
+    const scarce = advanceTurn(runningEconomy({ resourceReserves: 0 }), policies, () => 1);
+
+    expect(scarce.gdp).toBeLessThan(abundant.gdp);
+    expect(scarce.inflation).toBeGreaterThan(abundant.inflation);
+    expect(scarce.resourceReserves).toBe(0);
+  });
+
   it("models minimum wage gains for workers and costs for businesses", () => {
     const nextEconomy = advanceTurn(runningEconomy(), {
       ...policies,
@@ -223,6 +335,37 @@ describe("advanceTurn", () => {
 
     expect(nextEconomy.groups.workers).toBeGreaterThan(60);
     expect(nextEconomy.groups.businesses).toBeLessThan(60);
+  });
+
+  it("lets tight labour markets raise average wages while slack labour markets weaken them", () => {
+    const fullEmployment = advanceTurn(
+      runningEconomy({ unemployment: 2 }),
+      { ...policies, minimumWage: 12 },
+      () => 1,
+    );
+    const slackLabourMarket = advanceTurn(
+      runningEconomy({ unemployment: 20 }),
+      { ...policies, minimumWage: 12 },
+      () => 1,
+    );
+    const extremeTightMarket = advanceTurn(
+      runningEconomy({ unemployment: 0, inflation: 100 }),
+      { ...policies, minimumWage: 12 },
+      () => 1,
+    );
+    const extremeSlackMarket = advanceTurn(
+      runningEconomy({ unemployment: 100 }),
+      { ...policies, minimumWage: 12 },
+      () => 1,
+    );
+
+    expect(fullEmployment.averageWage).toBeGreaterThan(slackLabourMarket.averageWage);
+    expect(fullEmployment.averageWage).toBeGreaterThan(15);
+    expect(slackLabourMarket.averageWage).toBeLessThan(15);
+    expect(fullEmployment.groups.workers).toBeGreaterThan(slackLabourMarket.groups.workers);
+    expect(fullEmployment.wellbeing).toBeGreaterThan(slackLabourMarket.wellbeing);
+    expect(extremeTightMarket.averageWage).toBeCloseTo(15.3);
+    expect(extremeSlackMarket.averageWage).toBeCloseTo(14.85);
   });
 
   it("models tariff protection and the cost and relief of energy subsidies", () => {
@@ -263,7 +406,7 @@ describe("advanceTurn", () => {
     }, () => 1);
 
     expect(investment.pendingEffects).toStrictEqual([
-      { kind: "productivity", dueTurn: 4, amount: 20 },
+      { kind: "capacity", dueTurn: 4, amount: 19.9 },
     ]);
 
     const waiting = advanceTurn(investment, {
@@ -283,7 +426,7 @@ describe("advanceTurn", () => {
       energySubsidy: 0,
     }, () => 1);
     expect(due.pendingEffects).toHaveLength(0);
-    expect(due.gdp).toBeGreaterThan(waiting.gdp * 1.02);
+    expect(due.productiveCapacity).toBeGreaterThan(waiting.productiveCapacity);
   });
 
   it("selects interval events deterministically and waits for a decision", () => {
@@ -441,7 +584,7 @@ describe("advanceTurn", () => {
     expect(advanceTurn(overthrow, policies, () => 1)).toBe(overthrow);
   });
 
-  it.fails("keeps event-driven approval low long enough for an overthrow at maximum unrest", () => {
+  it("keeps event-driven approval low long enough for an overthrow at maximum unrest", () => {
     const economy = runningEconomy({
       turn: 2,
       ...policies,
@@ -458,6 +601,69 @@ describe("advanceTurn", () => {
 
     const nextTurn = advanceTurn(borrowingShock, policies, () => 1);
     expect(nextTurn.outcome).toMatchObject({ kind: "defeat", reason: /overthrow/i });
+  });
+
+  it("overthrows the government after a sustained crisis reaches maximum unrest", () => {
+    let economy = runningEconomy({
+      approval: 10,
+      unrest: 100,
+      groups: { workers: 10, businesses: 10, publicSector: 10 },
+    });
+    economy = advanceTurn(economy, policies, () => 1);
+    expect(economy.outcome).toBeNull();
+    economy = advanceTurn(economy, policies, () => 1);
+
+    expect(economy.unrest).toBe(100);
+    expect(economy.outcome).toMatchObject({
+      kind: "defeat",
+      reason: /overthrow/i,
+      report: { unrest: 100 },
+    });
+    expect(advanceTurn(economy, policies, () => 1)).toBe(economy);
+  });
+
+  it("overthrows at maximum unrest when prolonged unemployment keeps the crisis severe", () => {
+    const crisisPolicies = {
+      ...policies,
+      minimumWage: 30,
+      tariffRate: 5,
+      energySubsidy: 0,
+    };
+    let economy = runningEconomy({
+      approval: 55,
+      unrest: 100,
+      unemployment: 20,
+      groups: { workers: 55, businesses: 55, publicSector: 55 },
+    });
+    economy = advanceTurn(economy, crisisPolicies, () => 1);
+
+    expect(economy.approval).toBeGreaterThan(40);
+    expect(economy.unemployment).toBeGreaterThanOrEqual(20);
+    expect(economy.overthrowRiskTurns).toBe(1);
+    expect(economy.outcome).toBeNull();
+
+    economy = advanceTurn(economy, crisisPolicies, () => 1);
+    expect(economy.outcome).toMatchObject({ kind: "defeat", reason: /overthrow/i });
+  });
+
+  it("can recover from political pressure when demand and living standards improve", () => {
+    const strained = runningEconomy({
+      unrest: 82,
+      wellbeing: 40,
+    });
+    const recovery = advanceTurn(strained, {
+      taxRate: 25,
+      publicSpending: 500,
+      interestRate: 6,
+      minimumWage: 15,
+      tariffRate: 5,
+      energySubsidy: 100,
+    }, () => 1);
+
+    expect(recovery.unrest).toBeLessThan(strained.unrest);
+    expect(recovery.wellbeing).toBeGreaterThan(strained.wellbeing);
+    expect(recovery.overthrowRiskTurns).toBe(0);
+    expect(recovery.outcome).toBeNull();
   });
 
   it("allows recovery before the fiscal insolvency grace period expires", () => {

@@ -88,22 +88,22 @@ The model is deterministic and illustrative, not a forecast. Values and threshol
 
 ### Policy And Indicator Effects
 
-Let `s` be public spending, `i` the interest rate, `t` the tax rate, `w` the minimum wage, `r` the tariff, `e` the energy subsidy, and `d` existing public debt. Baseline growth is `0.02 + (s - 200) / 10,000`. Lower rates below 3 and higher rates above 5 have small opposing growth effects; wage changes have a modest demand effect, very high wages and tariffs reduce growth, and debt above 1,000 reduces growth by 0.1 percentage points per additional 1,000 model units. GDP grows by that rate plus any due productivity effect.
+The model keeps units distinct: GDP, treasury, debt, productive capacity, and hourly wages are model currency/output units; inflation, unemployment, approval, unrest, and resource reserves are percentages or indices. The resource reserve index starts at 100 and is finite, while capacity is a persistent ceiling on output. The minimum wage is a policy floor; average wage is a separate endogenous hourly-pay estimate.
 
-- Inflation starts from its previous value, adds spending pressure (`s / 1,000`), subtracts `i * 0.1`, and adds tariff/high-wage pressure while subsidies reduce household energy-price pressure.
-- Unemployment moves opposite growth, with additional pressure from very high wages and rates; it is bounded to `0–100`.
-- Treasury changes by tax receipts (`current GDP * t / 100`) minus spending and subsidies. Deficits add debt; surpluses pay down up to one tenth of the current surplus.
-- Workers, businesses, and public-sector employees each have approval from `0–100`. Overall approval weights them `40% / 35% / 25%` respectively. These are illustrative weights, not claims about real-world influence.
-- Inflation, unemployment, spending, and subsidies affect wellbeing. Wellbeing and unrest affect a small population-growth rate; population cannot become negative.
-- Minimum-wage and tariff effects are stylized demand/cost/protection trade-offs. The model does not represent sectors, exchange rates, banking, expectations, or endogenous productivity beyond the scheduled investment effect.
+Let `s` be public spending, `i` the interest rate, `t` the tax rate, `w` the minimum wage, `r` the tariff, `e` the energy subsidy, and `d` existing public debt. Aggregate-demand growth starts from `0.02 + (s - 200) / 10,000 + (25 - t) * 0.0002`, with additional effects from interest rates, wages, tariffs, business confidence, wellbeing, and debt above 1,000. A direct spending-demand term, `(s - 200) * 0.1`, makes contractions possible even when output is low. Tax receipts use the previous turn's actual GDP, so a prolonged demand slump can shrink the revenue base.
 
-Public spending of at least 350 schedules a productivity addition of `(spending - 300) * 0.2` for two turns later. Due entries are applied once and removed from the queue.
+- Output is limited by productive capacity multiplied by resource availability (`0.5 + reserves * 0.005`). Production consumes `GDP / 2,000` resource-index points each turn. Scarcity raises input-cost inflation and can constrain output.
+- Spending below 250 gradually depreciates capacity. Spending of at least 350 schedules a capacity addition two turns later; its size depends on spending above 300 and business confidence. The investment is delayed and persistent rather than a one-off GDP bonus.
+- Unemployment responds to realized output growth, unused capacity, wage costs, and interest rates. Average wages rise faster in tight labour markets, weaken when unemployment is high, and partly catch up with inflation; growth is bounded to -1%–2% per turn. Higher wages support household demand and wellbeing but can squeeze business margins. Worker support reflects wages, jobs, inflation, and wellbeing; business support reflects wage costs, taxes, tariffs, interest rates, unemployment, and growth. These group scores feed overall approval at `40% / 35% / 25%`.
+- Inflation adds spending, tariff, wage, and resource-scarcity pressure; interest rates and energy subsidies reduce price pressure. Inflation and unemployment erode wellbeing and purchasing power, while public services, wages, and energy support can improve living standards.
+- Unrest rises with weak approval, inflation, joblessness, low wellbeing, and contraction, and falls when those pressures ease. Wellbeing and unrest affect population growth; population cannot become negative.
+- These are deliberately simplified mechanisms, not a full WORLD3, Keynesian, or Goodwin model. The game does not represent sectors, exchange rates, banking, expectations, or household balance sheets.
 
 ### Events, Reporting, And Outcomes
 
 An event is considered every third turn, with a 40% chance. The random-number function is injectable into `advanceTurn` and `createApp` for deterministic tests. Events include energy shocks (player choice), recessions, public strikes, tax windfalls, trade disruptions, and borrowing shocks. Automatic effects and event descriptions are recorded in state history. Headlines are selected from the actual event and indicator thresholds; advisers use current fiscal, inflation, approval, and group data.
 
-The simulation has no turn limit. Defeat occurs after two consecutive turns with approval below 25 and unrest at least 80; after two turns with treasury below -1,000; after three turns with GDP below 500; or immediately when population reaches zero. Population collapse has priority over overthrow, fiscal crisis, then economic collapse. Rules can be overridden when constructing an initial economy. An unresolved event or final outcome pauses automatic progression.
+The simulation has no turn limit. Overthrow occurs after two consecutive turns with approval below 25 and unrest at least 80. At extreme unrest (95 or higher), sustained approval below 40, unemployment of at least 20%, wellbeing of 25 or less, inflation of at least 15%, or contraction of 5% or more is also sufficient political-crisis evidence. This allows a prolonged, severe crisis to trigger overthrow without treating one bad turn or unrest alone as an automatic defeat. Other defeats occur after two turns with treasury below -1,000, after three turns with GDP below 500, or immediately when population reaches zero. Population collapse has priority over overthrow, fiscal crisis, then economic collapse. Rules can be overridden when constructing an initial economy. An unresolved event or final outcome pauses automatic progression.
 
 Achievements are state-earned and recorded once: non-deficit turn cash flow, inflation at or below 2%, surviving a recession through the following turn, and wellbeing at least 65 while treasury remains non-negative. The final report records changes from the starting state and the actual policy/event history; it does not infer unsupported causal claims.
 
@@ -111,7 +111,7 @@ Achievements are state-earned and recorded once: non-deficit turn cash flow, inf
 
 - `src/economy.ts` defines typed state, policy validation, effects, events, reporting, achievements, and pure turn transitions.
 - `src/app.ts` provides the in-memory Express API and injectable random source.
-- `src/App.tsx` renders indicators, controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
+- `src/App.tsx` renders indicators (including productive capacity and resource reserves), controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
 - `src/styles.css` provides the responsive editorial interface.
 
 ## Testing And Accessibility

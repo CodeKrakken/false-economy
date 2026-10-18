@@ -99,8 +99,14 @@ describe("Economy Simulator interface", () => {
     expect(await screen.findByRole("heading", { name: /False Economy/i })).toBeTruthy();
     expect(await screen.findByRole("heading", { name: /It's the economy, stupid/i })).toBeTruthy();
     expect(screen.getByText("$1,000")).toBeTruthy();
+    expect(screen.getByText("Productive capacity")).toBeTruthy();
+    expect(screen.getByText("$1,600")).toBeTruthy();
+    expect(screen.getByText("Resource reserves")).toBeTruthy();
+    expect(screen.getByText("100.0%")).toBeTruthy();
     expect(screen.getByText("2.0%")).toBeTruthy();
     expect(screen.getByText("5.0%")).toBeTruthy();
+    expect(screen.getByText("Average wage")).toBeTruthy();
+    expect(screen.getByText("$15.00/hr")).toBeTruthy();
     expect(screen.getByLabelText("Turn 1")).toBeTruthy();
     expect(screen.getByText("NOT STARTED")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start game" })).toBeTruthy();
@@ -337,10 +343,10 @@ describe("Economy Simulator interface", () => {
       achievements: ["balancedBudget", "priceStability"],
       outcome: {
         kind: "defeat" as const,
-        reason: "A fiscal crisis ends the game.",
+        reason: "Sustained severe public anger and economic crisis have overthrown the government.",
         endedTurn: 4,
         report: {
-          reason: "A fiscal crisis ends the game.",
+          reason: "Sustained severe public anger and economic crisis have overthrown the government.",
           gdpChange: -100,
           inflationChange: 3,
           treasuryChange: -1200,
@@ -356,7 +362,7 @@ describe("Economy Simulator interface", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: /final report/i })).toBeTruthy();
-    expect(screen.getByText(/A fiscal crisis ends the game/i)).toBeTruthy();
+    expect(screen.getByText(/overthrown the government/i)).toBeTruthy();
     expect(screen.getByText("Balanced budget")).toBeTruthy();
     expect(screen.getByText("Price stability")).toBeTruthy();
     expect(screen.getByText(/Population change/i)).toBeTruthy();

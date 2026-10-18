@@ -16,6 +16,7 @@ const initialEconomy = {
   publicSpending: 200,
   interestRate: 3,
   minimumWage: 12,
+  averageWage: 15,
   tariffRate: 5,
   energySubsidy: 0,
   approval: 60,
@@ -23,6 +24,8 @@ const initialEconomy = {
   population: 1_000_000,
   wellbeing: 60,
   unrest: 20,
+  productiveCapacity: 1600,
+  resourceReserves: 100,
   groups: { workers: 60, businesses: 60, publicSector: 60 },
   pendingEffects: [],
   pendingEvent: null,
@@ -90,17 +93,20 @@ describe("Economy API", () => {
     expect(response.body).toStrictEqual({
       turn: 2,
       started: true,
-      gdp: 1025,
-      growthRate: 2.5,
+      gdp: 1028.9940000000001,
+      growthRate: 2.9,
       inflation: 1.85,
-      unemployment: 4.75,
+      unemployment: 4.710059999999999,
       treasury: 550,
-      approval: 60,
+      approval: 60.3,
+      averageWage: 15.09,
       debt: 0,
       population: 1_000_254,
       wellbeing: 60.8,
       unrest: 19.2,
-      groups: { workers: 60, businesses: 59.4, publicSector: 61 },
+      productiveCapacity: 1600,
+      resourceReserves: 99.485503,
+      groups: { workers: 60.1, businesses: 59.6, publicSector: 61.6 },
       pendingEffects: [],
       pendingEvent: null,
       overthrowRiskTurns: 0,
@@ -185,6 +191,35 @@ describe("Economy API", () => {
 
     expect(response?.body.turn).toBe(26);
     expect(response?.body.outcome).toBeNull();
+  });
+
+  it("returns a terminal overthrow from turn advancement and ignores later turn requests", async () => {
+    const crisisApp = createApp(() => 1);
+    const crisisPolicies = {
+      taxRate: 60,
+      publicSpending: 0,
+      interestRate: 20,
+      minimumWage: 30,
+      tariffRate: 40,
+      energySubsidy: 0,
+    };
+    let response = await startEconomy(crisisApp, crisisPolicies);
+
+    for (let turn = 0; turn < 30 && !response.body.outcome; turn += 1) {
+      response = await request(crisisApp)
+        .post("/api/economy/turn")
+        .send(crisisPolicies);
+    }
+
+    expect(response.body.outcome).toMatchObject({
+      kind: "defeat",
+      reason: /overthrown the government/i,
+    });
+    const finalEconomy = response.body;
+    const laterTurn = await request(crisisApp)
+      .post("/api/economy/turn")
+      .send(crisisPolicies);
+    expect(laterTurn.body).toStrictEqual(finalEconomy);
   });
 
   it("returns a descriptive 400 error for invalid policy values", async () => {

@@ -17,7 +17,7 @@ export type InterestGroups = {
 };
 
 export type ScheduledEffect = {
-  kind: "productivity";
+  kind: "capacity";
   dueTurn: number;
   amount: number;
 };
@@ -104,6 +104,7 @@ export type Economy = {
   publicSpending: number;
   interestRate: number;
   minimumWage: number;
+  averageWage: number;
   tariffRate: number;
   energySubsidy: number;
   approval: number;
@@ -111,6 +112,8 @@ export type Economy = {
   population: number;
   wellbeing: number;
   unrest: number;
+  productiveCapacity: number;
+  resourceReserves: number;
   groups: InterestGroups;
   pendingEffects: ScheduledEffect[];
   pendingEvent: GameEvent | null;
@@ -146,6 +149,11 @@ const POLICY_LIMITS: Record<keyof Policies, [number, number]> = {
 
 const EVENT_INTERVAL = 3;
 const EVENT_CHANCE = 0.4;
+const CRITICAL_UNREST = 95;
+const CRITICAL_APPROVAL = 40;
+const CRITICAL_UNEMPLOYMENT = 20;
+const CRITICAL_WELLBEING = 25;
+const CRITICAL_INFLATION = 15;
 const EVENTS: GameEvent[] = [
   { type: "energyShock", title: "Energy prices jump", description: "A global supply squeeze pushes household energy costs higher.", requiresDecision: true },
   { type: "recession", title: "Trading partners slide into recession", description: "Weaker foreign demand cuts output and raises unemployment.", requiresDecision: false },
@@ -189,25 +197,40 @@ function groupsFor(
   economy: Economy,
   policies: Policies,
   inflation: number,
+  unemployment: number,
+  averageWage: number,
 ): InterestGroups {
   const wageChange = policies.minimumWage - economy.minimumWage;
   return {
     workers: oneDecimal(bounded(
-      economy.groups.workers + wageChange * 0.5 - Math.max(0, inflation - 2) * 0.4 + policies.energySubsidy * 0.015,
+      economy.groups.workers +
+        wageChange * 0.5 +
+        (averageWage - economy.averageWage) +
+        Math.max(0, 5 - unemployment) * 0.08 -
+        Math.max(0, unemployment - 8) * 0.12 -
+        Math.max(0, inflation - 2) * 0.4 -
+        Math.max(0, 50 - economy.wellbeing) * 0.03 +
+        policies.energySubsidy * 0.015,
       0,
       100,
     )),
     businesses: oneDecimal(bounded(
       economy.groups.businesses -
         wageChange * 0.3 +
-        (economy.taxRate - policies.taxRate) * 0.1 +
+        (25 - policies.taxRate) * 0.03 +
         (policies.tariffRate - economy.tariffRate) * 0.1 -
-        (policies.interestRate - economy.interestRate) * 0.15,
+        (5 - policies.tariffRate) * 0.02 -
+        (policies.interestRate - economy.interestRate) * 0.15 -
+        Math.max(0, averageWage - 15) * 0.08 +
+        Math.max(0, economy.growthRate) * 0.02 -
+        Math.max(0, unemployment - 8) * 0.03,
       0,
       100,
     )),
     publicSector: oneDecimal(bounded(
-      economy.groups.publicSector + (policies.publicSpending - economy.publicSpending) * 0.02,
+      economy.groups.publicSector +
+        (policies.publicSpending - economy.publicSpending) * 0.02 +
+        (policies.publicSpending - 200) * 0.005,
       0,
       100,
     )),
@@ -228,10 +251,18 @@ export function startGame(economy: Economy, input: PolicyInput): Economy {
   }
   const policies = policiesFor(economy, input);
   validatePolicies(policies);
-  const groups = groupsFor(economy, policies, economy.inflation);
+  const averageWage = Math.max(economy.averageWage, policies.minimumWage);
+  const groups = groupsFor(
+    economy,
+    policies,
+    economy.inflation,
+    economy.unemployment,
+    averageWage,
+  );
   return {
     ...economy,
     ...policies,
+    averageWage,
     groups,
     approval: approvalFor(groups),
     started: true,
@@ -270,6 +301,14 @@ function chooseEvent(turn: number, random: () => number): GameEvent | null {
   return EVENTS[index];
 }
 
+function applyOutputShock(economy: Economy, multiplier: number): Economy {
+  return {
+    ...economy,
+    gdp: bounded(economy.gdp * multiplier, 0, Number.MAX_VALUE),
+    growthRate: oneDecimal(((1 + economy.growthRate / 100) * multiplier - 1) * 100),
+  };
+}
+
 function applyAutomaticEvent(
   economy: Economy,
   eventType: Exclude<EventType, "energyShock">,
@@ -277,18 +316,19 @@ function applyAutomaticEvent(
   switch (eventType) {
     case "recession":
       return {
-        ...economy,
-        gdp: bounded(economy.gdp * 0.97, 0, Number.MAX_VALUE),
+        ...applyOutputShock(economy, 0.97),
         unemployment: bounded(economy.unemployment + 2, 0, 100),
-        approval: bounded(economy.approval - 3, 0, 100),
         unrest: bounded(economy.unrest + 4, 0, 100),
+        groups: {
+          workers: bounded(economy.groups.workers - 4, 0, 100),
+          businesses: bounded(economy.groups.businesses - 3, 0, 100),
+          publicSector: bounded(economy.groups.publicSector - 2, 0, 100),
+        },
       };
     case "publicStrike":
       return {
-        ...economy,
-        gdp: bounded(economy.gdp * 0.98, 0, Number.MAX_VALUE),
+        ...applyOutputShock(economy, 0.98),
         groups: { ...economy.groups, publicSector: bounded(economy.groups.publicSector - 12, 0, 100) },
-        approval: bounded(economy.approval - 3, 0, 100),
         unrest: bounded(economy.unrest + 8, 0, 100),
       };
     case "taxWindfall":
@@ -296,32 +336,45 @@ function applyAutomaticEvent(
         ...economy,
         treasury: economy.treasury + 150,
         debt: bounded(economy.debt - 150, 0, Number.MAX_VALUE),
-        approval: bounded(economy.approval + 3, 0, 100),
+        groups: {
+          workers: bounded(economy.groups.workers + 3, 0, 100),
+          businesses: bounded(economy.groups.businesses + 3, 0, 100),
+          publicSector: bounded(economy.groups.publicSector + 3, 0, 100),
+        },
       };
     case "tradeDisruption":
       return {
-        ...economy,
-        gdp: bounded(economy.gdp * 0.98, 0, Number.MAX_VALUE),
+        ...applyOutputShock(economy, 0.98),
         inflation: bounded(economy.inflation + 1.5, -Number.MAX_VALUE, Number.MAX_VALUE),
-        approval: bounded(economy.approval - 4, 0, 100),
         unrest: bounded(economy.unrest + 4, 0, 100),
+        resourceReserves: bounded(economy.resourceReserves - 5, 0, 100),
+        groups: {
+          workers: bounded(economy.groups.workers - 4, 0, 100),
+          businesses: bounded(economy.groups.businesses - 4, 0, 100),
+          publicSector: bounded(economy.groups.publicSector - 1, 0, 100),
+        },
       };
     case "borrowingShock":
       return {
-        ...economy,
-        gdp: bounded(economy.gdp * 0.99, 0, Number.MAX_VALUE),
+        ...applyOutputShock(economy, 0.99),
         treasury: economy.treasury - 80,
         debt: bounded(economy.debt + 200, 0, Number.MAX_VALUE),
-        approval: bounded(economy.approval - 3, 0, 100),
+        groups: {
+          workers: bounded(economy.groups.workers - 3, 0, 100),
+          businesses: bounded(economy.groups.businesses - 5, 0, 100),
+          publicSector: bounded(economy.groups.publicSector - 2, 0, 100),
+        },
       };
   }
 }
 
 function headlineFor(economy: Economy, event: GameEvent | null): string {
   if (event) return event.title;
+  if (economy.resourceReserves < 30) return "Resource shortages constrain production and raise prices";
   if (economy.inflation > 5) return "Inflation refuses to leave the front page";
   if (economy.treasury < 0) return "Deficit puts the public finances under scrutiny";
   if (economy.unemployment > 8) return "Growth holds, but the jobs recovery falters";
+  if (economy.growthRate < 0) return "Weak demand and investment pull output into contraction";
   return "Growth steadies as the policy experiment continues";
 }
 
@@ -334,7 +387,7 @@ function outcomeFor(economy: Economy): GameOutcome | null {
     reason = "Population collapse leaves the country without a viable base.";
   } else if (economy.overthrowRiskTurns >= economy.rules.overthrowGraceTurns) {
     kind = "defeat";
-    reason = "Low approval and high unrest trigger an overthrow.";
+    reason = "Sustained severe public anger and economic crisis have overthrown the government.";
   } else if (economy.insolvencyTurns >= economy.rules.insolvencyGraceTurns) {
     kind = "defeat";
     reason = "The government cannot meet its obligations: a fiscal crisis.";
@@ -362,6 +415,20 @@ function outcomeFor(economy: Economy): GameOutcome | null {
   };
 }
 
+function hasOverthrowRisk(economy: Economy): boolean {
+  const sustainedLowSupport =
+    economy.approval < economy.rules.overthrowApproval &&
+    economy.unrest >= economy.rules.overthrowUnrest;
+  const criticalSignals =
+    Number(economy.approval < CRITICAL_APPROVAL) +
+    Number(economy.unemployment >= CRITICAL_UNEMPLOYMENT) +
+    Number(economy.wellbeing <= CRITICAL_WELLBEING) +
+    Number(economy.inflation >= CRITICAL_INFLATION) +
+    Number(economy.growthRate <= -5);
+  const severeCrisis = economy.unrest >= CRITICAL_UNREST && criticalSignals > 0;
+  return sustainedLowSupport || severeCrisis;
+}
+
 function addAchievements(economy: Economy, treasuryChange: number): AchievementId[] {
   const earned = new Set(economy.achievements);
   if (treasuryChange >= 0) earned.add("balancedBudget");
@@ -380,7 +447,9 @@ export function getEconomicWarnings(economy: Economy): string[] {
   if (economy.treasury < 0) warnings.push("Treasury is below zero.");
   if (economy.gdp <= economy.rules.collapseGdp * 1.2) warnings.push("GDP is close to collapse.");
   if (economy.population < economy.gameStart.population * 0.9) warnings.push("Population is declining.");
-  if (economy.approval < 40 && economy.unrest >= 55) {
+  if (hasOverthrowRisk(economy)) {
+    warnings.push("Severe unrest and economic crisis put the government at risk of overthrow.");
+  } else if (economy.approval < 40 && economy.unrest >= 55) {
     warnings.push("Low approval and high unrest threaten the government.");
   }
   return warnings;
@@ -397,14 +466,16 @@ export function getAdviserAdvice(economy: Economy): AdviserAdvice {
   }
 
   let political: string;
-  if (economy.approval < 40 && economy.unrest >= 55) {
+  if (hasOverthrowRisk(economy)) {
+    political = "Political adviser: severe unrest and economic crisis put the government at risk of overthrow.";
+  } else if (economy.approval < 40 && economy.unrest >= 55) {
     political = "Political adviser: public anger is approaching overthrow risk.";
-  } else if (
-    economy.groups.workers < 40 ||
-    economy.groups.businesses < 40 ||
-    economy.groups.publicSector < 40
-  ) {
-    political = "Political adviser: one or more interest groups are losing confidence.";
+  } else if (economy.groups.businesses < 40) {
+    political = "Political adviser: squeezed business margins may be holding back investment and hiring.";
+  } else if (economy.groups.workers < 40) {
+    political = "Political adviser: wages, job prospects, or prices are squeezing household demand.";
+  } else if (economy.groups.publicSector < 40) {
+    political = "Political adviser: strained public services can erode living standards.";
   } else {
     political = "Political adviser: public support is broad, but policy trade-offs remain.";
   }
@@ -421,33 +492,66 @@ export function advanceTurn(
   validatePolicies(policies);
 
   const nextTurn = economy.turn + 1;
-  const growthRate =
+  const wageGrowthRate = bounded(
+    Math.max(0, 8 - economy.unemployment) * 0.002 -
+      Math.max(0, economy.unemployment - 8) * 0.0005 +
+      Math.max(0, economy.inflation - 3) * 0.0002,
+    -0.01,
+    0.02,
+  );
+  const averageWage = Math.max(
+    policies.minimumWage,
+    economy.averageWage * (1 + wageGrowthRate),
+  );
+  const demandGrowthRate =
     0.02 +
     (policies.publicSpending - 200) / 10_000 +
+    (25 - policies.taxRate) * 0.0002 +
     Math.max(0, 3 - policies.interestRate) * 0.0002 -
     Math.max(0, policies.interestRate - 5) * 0.0004 +
     (policies.minimumWage - 12) * 0.00005 -
     Math.max(0, policies.minimumWage - 18) * 0.0003 -
     (policies.tariffRate - 5) * 0.00008 -
-    Math.max(0, economy.debt - 1000) / 1_000_000;
+    Math.max(0, economy.debt - 1000) / 1_000_000 +
+    (economy.groups.businesses - 60) * 0.00005 +
+    (economy.wellbeing - 60) * 0.0001 +
+    (averageWage - economy.averageWage) * 0.0001;
 
   const dueEffects = economy.pendingEffects.filter((effect) => effect.dueTurn <= nextTurn);
   const pendingEffects = economy.pendingEffects.filter((effect) => effect.dueTurn > nextTurn);
-  const productivity = dueEffects.reduce((total, effect) => total + effect.amount, 0);
-  const gdp = bounded(economy.gdp * (1 + growthRate) + productivity, 0, Number.MAX_VALUE);
+  const capacityInvestment = dueEffects.reduce((total, effect) => total + effect.amount, 0);
+  const productiveCapacity = Math.max(
+    0,
+    economy.productiveCapacity -
+      Math.max(0, 250 - policies.publicSpending) * 0.02 +
+      capacityInvestment,
+  );
+  const previousGdp = Number.isFinite(economy.gdp) ? economy.gdp : 0;
+  const potentialGdp = Number.isFinite(economy.gdp)
+    ? Math.max(
+      0,
+      previousGdp * (1 + demandGrowthRate) + (policies.publicSpending - 200) * 0.1,
+    )
+    : 0;
+  const resourceAvailability = 0.5 + economy.resourceReserves * 0.005;
+  const gdp = Math.min(potentialGdp, productiveCapacity * resourceAvailability);
+  const growthRate = previousGdp > 0 ? gdp / previousGdp - 1 : 0;
   const calculatedInflation =
     economy.inflation +
     policies.publicSpending / 1_000 -
     policies.interestRate * 0.1 +
     Math.max(0, policies.tariffRate - 5) * 0.05 +
     Math.max(0, policies.minimumWage - 18) * 0.04 -
-    policies.energySubsidy * 0.01;
+    policies.energySubsidy * 0.01 +
+    Math.max(0, 70 - economy.resourceReserves) * 0.015;
   const inflation = Number.isNaN(calculatedInflation)
     ? 0
     : bounded(calculatedInflation, -Number.MAX_VALUE, Number.MAX_VALUE);
+  const capacityShortfall = Math.max(0, potentialGdp - gdp) / Math.max(1, potentialGdp);
   const unemployment = bounded(
     economy.unemployment -
     growthRate * 10 +
+    capacityShortfall * 6 +
     Math.max(0, policies.minimumWage - 15) * 0.2 +
     Math.max(0, policies.interestRate - 5) * 0.15,
     0,
@@ -460,22 +564,29 @@ export function advanceTurn(
     policies.energySubsidy;
   const treasury = Number.isFinite(calculatedTreasury) ? calculatedTreasury : 0;
 
-  const groups = groupsFor(economy, policies, inflation);
+  const groups = groupsFor(economy, policies, inflation, unemployment, averageWage);
   const approval = approvalFor(groups);
-  const unrest = oneDecimal(bounded(
-    economy.unrest + (50 - approval) * 0.08 + Math.max(0, inflation - 4) * 0.2,
-    0,
-    100,
-  ));
   const wellbeing = oneDecimal(bounded(
     economy.wellbeing +
       (policies.publicSpending - 200) * 0.015 +
       policies.energySubsidy * 0.04 -
-      Math.max(0, inflation - 3) * 0.25 -
-      Math.max(0, unemployment - 5) * 0.2,
+      Math.max(0, inflation - 2) * 0.25 -
+      Math.max(0, unemployment - 5) * 0.2 +
+      Math.max(0, averageWage - economy.averageWage) * 0.5,
     0,
     100,
   ));
+  const unrest = oneDecimal(bounded(
+    economy.unrest +
+      (50 - approval) * 0.08 +
+      Math.max(0, inflation - 4) * 0.2 +
+      Math.max(0, unemployment - 8) * 0.08 +
+      Math.max(0, 50 - wellbeing) * 0.04 +
+      Math.max(0, -growthRate * 100) * 0.35,
+    0,
+    100,
+  ));
+  const resourceReserves = bounded(economy.resourceReserves - gdp / 2_000, 0, 100);
   const populationRate = 0.0002 + (wellbeing - 50) * 0.000005 - Math.max(0, unrest - 60) * 0.00001;
   const population = Math.max(0, Math.round(economy.population * (1 + populationRate)));
   const treasuryChange = treasury - economy.treasury;
@@ -485,16 +596,31 @@ export function advanceTurn(
     Number.MAX_VALUE,
   );
 
-  if (![gdp, inflation, unemployment, treasury, approval, unrest, wellbeing, population, debt]
+  if (![
+    gdp,
+    potentialGdp,
+    growthRate,
+    inflation,
+    unemployment,
+    treasury,
+    approval,
+    unrest,
+    wellbeing,
+    averageWage,
+    productiveCapacity,
+    resourceReserves,
+    population,
+    debt,
+  ]
     .every(Number.isFinite)) {
     throw new RangeError("Economic calculations produced a non-finite value.");
   }
 
   if (policies.publicSpending >= 350) {
     pendingEffects.push({
-      kind: "productivity",
+      kind: "capacity",
       dueTurn: nextTurn + 2,
-      amount: (policies.publicSpending - 300) * 0.2,
+      amount: oneDecimal((policies.publicSpending - 300) * 0.2 * (groups.businesses / 60)),
     });
   }
 
@@ -514,6 +640,9 @@ export function advanceTurn(
     population,
     wellbeing,
     unrest,
+    averageWage,
+    productiveCapacity,
+    resourceReserves,
     groups,
     pendingEffects,
     history: [...economy.history, ...entries],
@@ -531,13 +660,12 @@ export function advanceTurn(
     }];
   }
 
+  nextEconomy.approval = approvalFor(nextEconomy.groups);
   nextEconomy = {
     ...nextEconomy,
-    overthrowRiskTurns:
-      nextEconomy.approval < nextEconomy.rules.overthrowApproval &&
-      nextEconomy.unrest >= nextEconomy.rules.overthrowUnrest
-        ? economy.overthrowRiskTurns + 1
-        : 0,
+    overthrowRiskTurns: hasOverthrowRisk(nextEconomy)
+      ? economy.overthrowRiskTurns + 1
+      : 0,
     insolvencyTurns:
       nextEconomy.treasury < nextEconomy.rules.insolvencyLimit
         ? economy.insolvencyTurns + 1
@@ -551,7 +679,7 @@ export function advanceTurn(
   nextEconomy = {
     ...nextEconomy,
     headline: headlineFor(nextEconomy, event),
-    achievements: addAchievements(nextEconomy, calculatedTreasury - economy.treasury),
+    achievements: addAchievements(nextEconomy, nextEconomy.treasury - economy.treasury),
   };
 
   return nextEconomy;
@@ -609,6 +737,7 @@ export function createInitialEconomy(
     publicSpending: 200,
     interestRate: 3,
     minimumWage: 12,
+    averageWage: 15,
     tariffRate: 5,
     energySubsidy: 0,
     approval: 60,
@@ -616,6 +745,8 @@ export function createInitialEconomy(
     population: 1_000_000,
     wellbeing: 60,
     unrest: 20,
+    productiveCapacity: 1600,
+    resourceReserves: 100,
     groups: { workers: 60, businesses: 60, publicSector: 60 },
     pendingEffects: [],
     pendingEvent: null,
