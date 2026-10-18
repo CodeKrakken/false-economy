@@ -492,6 +492,12 @@ h2 {
   margin-bottom: 24px;
 }
 
+.policy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .policy-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -583,6 +589,18 @@ h2 {
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.button-primary {
+  color: var(--paper);
+  background: var(--red);
+  border-color: var(--red);
+  text-transform: uppercase;
+}
+
+.button-primary:not(:disabled):hover {
+  background: var(--red-dark);
+  border-color: var(--red-dark);
 }
 
 .button-secondary {

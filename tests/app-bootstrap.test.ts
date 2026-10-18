@@ -27,6 +27,7 @@ describe("server bootstrap", () => {
     vi.doMock("../src/economy.js", () => ({
       createInitialEconomy: () => ({
         turn: 1,
+        started: true,
         gdp: 1000,
         inflation: 2,
         unemployment: 5,
@@ -37,6 +38,9 @@ describe("server bootstrap", () => {
       }),
       advanceTurn: () => {
         throw new Error("Unexpected simulation failure");
+      },
+      startGame: () => {
+        throw new Error("Unexpected start failure");
       },
       resolveEventDecision: () => {
         throw new Error("Unexpected event failure");
@@ -58,6 +62,11 @@ describe("server bootstrap", () => {
 
       const apiFallback = await request(app).get("/api/unsupported");
       expect(apiFallback.status).toBe(404);
+
+      const unexpectedStartError = await request(app)
+        .post("/api/economy/start")
+        .send(policies);
+      expect(unexpectedStartError.status).toBe(500);
 
       rmSync(indexFile);
       const staticFallbackError = await request(app).get("/dashboard");

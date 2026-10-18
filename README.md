@@ -1,6 +1,6 @@
 # False Economy
 
-A satirical, deterministic policy-strategy game about the trade-offs behind taxation, public services, monetary policy, wages, trade, and energy costs. The live simulation advances once per second until a government completes its term or reaches a defined defeat condition.
+A satirical, deterministic policy-strategy game about the trade-offs behind taxation, public services, monetary policy, wages, trade, and energy costs. Choose policies before starting; the live simulation then advances once per second until defeat.
 
 ## Features
 
@@ -8,8 +8,8 @@ A satirical, deterministic policy-strategy game about the trade-offs behind taxa
 - GDP, growth, inflation, unemployment, treasury, debt, population, wellbeing, approval, and unrest.
 - Separate worker, business, and public-sector approval.
 - Scheduled public-investment returns and interval-based economic/political events.
-- State-based newspaper headlines, treasury and political advisers, warnings, milestones, and an end-of-term report.
-- Configurable term and defeat thresholds, plus grace periods for recoverable crises.
+- State-based newspaper headlines, treasury and political advisers, warnings, milestones, and a final defeat report.
+- Configurable defeat thresholds, plus grace periods for recoverable crises.
 - Responsive React dashboard and Express JSON API; the server owns game state and calculations.
 
 ## Tech Stack
@@ -47,9 +47,13 @@ Run a production build with `npm start`; Express serves the API and built fronte
 
 Returns the full current game state, including indicators, group approval, pending effects/events, history, achievements, configurable rules, and any outcome report.
 
+### `POST /api/economy/start`
+
+Starts a new game with the submitted policies. `taxRate`, `publicSpending`, and `interestRate` are required; the other policy fields are optional. The game does not advance until this request succeeds.
+
 ### `POST /api/economy/turn`
 
-Advances one turn. `taxRate`, `publicSpending`, and `interestRate` are required. The other policy fields are optional for compatibility and retain their current values when omitted.
+Advances one turn after the game has started. `taxRate`, `publicSpending`, and `interestRate` are required. The other policy fields are optional for compatibility and retain their current values when omitted. Advancing before the game starts returns HTTP `409`.
 
 | Policy | Allowed range | Unit |
 | --- | ---: | --- |
@@ -99,9 +103,9 @@ Public spending of at least 350 schedules a productivity addition of `(spending 
 
 An event is considered every third turn, with a 40% chance. The random-number function is injectable into `advanceTurn` and `createApp` for deterministic tests. Events include energy shocks (player choice), recessions, public strikes, tax windfalls, trade disruptions, and borrowing shocks. Automatic effects and event descriptions are recorded in state history. Headlines are selected from the actual event and indicator thresholds; advisers use current fiscal, inflation, approval, and group data.
 
-The default rules are a 20-turn term; overthrow after two consecutive turns with approval below 25 and unrest at least 80; fiscal defeat after two consecutive turns with treasury below -1,000; economic collapse after three turns with GDP below 500; and immediate population-collapse defeat at zero. A government that reaches its term without defeat wins. Population collapse has priority over overthrow, fiscal crisis, economic collapse, then term completion. Rules can be overridden when constructing an initial economy. An unresolved event or final outcome pauses automatic progression.
+The simulation has no turn limit. Defeat occurs after two consecutive turns with approval below 25 and unrest at least 80; after two turns with treasury below -1,000; after three turns with GDP below 500; or immediately when population reaches zero. Population collapse has priority over overthrow, fiscal crisis, then economic collapse. Rules can be overridden when constructing an initial economy. An unresolved event or final outcome pauses automatic progression.
 
-Achievements are state-earned and recorded once: non-deficit turn cash flow, inflation at or below 2%, surviving a recession through the following turn, completing the term, and wellbeing at least 65 while treasury remains non-negative. The final report records changes from the starting state and the actual policy/event history; it does not infer unsupported causal claims.
+Achievements are state-earned and recorded once: non-deficit turn cash flow, inflation at or below 2%, surviving a recession through the following turn, and wellbeing at least 65 while treasury remains non-negative. The final report records changes from the starting state and the actual policy/event history; it does not infer unsupported causal claims.
 
 ## Architecture
 

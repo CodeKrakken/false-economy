@@ -5,6 +5,7 @@ import {
   getAdviserAdvice,
   getEconomicWarnings,
   resolveEventDecision,
+  startGame,
 } from "../src/economy.js";
 import type { Economy } from "../src/economy.js";
 
@@ -12,6 +13,7 @@ describe("createInitialEconomy", () => {
   it("returns the initial economy values", () => {
     expect(createInitialEconomy()).toStrictEqual({
       turn: 1,
+      started: false,
       gdp: 1000,
       growthRate: 2,
       inflation: 2,
@@ -38,9 +40,8 @@ describe("createInitialEconomy", () => {
       history: [],
       achievements: [],
       outcome: null,
-      termStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
+      gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
       rules: {
-        termLength: 20,
         overthrowApproval: 25,
         overthrowUnrest: 80,
         overthrowGraceTurns: 2,
@@ -60,8 +61,38 @@ describe("advanceTurn", () => {
     interestRate: 4,
   };
 
+  const runningEconomy = (overrides: Partial<Economy> = {}): Economy => ({
+    ...createInitialEconomy(),
+    started: true,
+    ...overrides,
+  });
+
+  it("starts with selected policies without advancing the simulation", () => {
+    const started = startGame(createInitialEconomy(), {
+      ...policies,
+      minimumWage: 15,
+      tariffRate: 10,
+      energySubsidy: 25,
+    });
+
+    expect(started).toMatchObject({
+      started: true,
+      turn: 1,
+      taxRate: 30,
+      publicSpending: 250,
+      interestRate: 4,
+      minimumWage: 15,
+      tariffRate: 10,
+      energySubsidy: 25,
+    });
+    expect(started.history).toHaveLength(1);
+    expect(started.history[0]).toMatchObject({ turn: 1, type: "policy" });
+    expect(advanceTurn(createInitialEconomy(), policies)).toStrictEqual(createInitialEconomy());
+    expect(() => startGame(started, policies)).toThrow(/already started/i);
+  });
+
   it("advances one turn and applies policies and deterministic economic rules", () => {
-    const nextEconomy = advanceTurn(createInitialEconomy(), policies);
+    const nextEconomy = advanceTurn(runningEconomy(), policies);
     expect(nextEconomy.growthRate).toBe(2.5);
     expect({
       turn: nextEconomy.turn,
@@ -135,7 +166,7 @@ describe("advanceTurn", () => {
   });
 
   it("returns a new economy without mutating the input", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const original = { ...economy };
     const nextEconomy = advanceTurn(economy, policies);
 
@@ -144,7 +175,7 @@ describe("advanceTurn", () => {
   });
 
   it("grows GDP more with higher public spending", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const lowerSpending = advanceTurn(economy, {
       ...policies,
       publicSpending: 100,
@@ -158,7 +189,7 @@ describe("advanceTurn", () => {
   });
 
   it("reduces inflation more with higher interest rates", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const lowerRate = advanceTurn(economy, { ...policies, interestRate: 1 });
     const higherRate = advanceTurn(economy, { ...policies, interestRate: 10 });
 
@@ -166,7 +197,7 @@ describe("advanceTurn", () => {
   });
 
   it("raises treasury revenue with higher tax rates", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const lowerTax = advanceTurn(economy, { ...policies, taxRate: 10 });
     const higherTax = advanceTurn(economy, { ...policies, taxRate: 40 });
 
@@ -174,7 +205,7 @@ describe("advanceTurn", () => {
   });
 
   it("lets excessive public debt weigh on economic growth", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const lowDebt = advanceTurn(economy, policies, () => 1);
     const highDebt = advanceTurn({ ...economy, debt: 20_000 }, policies, () => 1);
 
@@ -183,7 +214,7 @@ describe("advanceTurn", () => {
   });
 
   it("models minimum wage gains for workers and costs for businesses", () => {
-    const nextEconomy = advanceTurn(createInitialEconomy(), {
+    const nextEconomy = advanceTurn(runningEconomy(), {
       ...policies,
       minimumWage: 18,
       tariffRate: 5,
@@ -195,7 +226,7 @@ describe("advanceTurn", () => {
   });
 
   it("models tariff protection and the cost and relief of energy subsidies", () => {
-    const economy = createInitialEconomy();
+    const economy = runningEconomy();
     const openTrade = advanceTurn(economy, {
       ...policies,
       minimumWage: 12,
@@ -223,7 +254,7 @@ describe("advanceTurn", () => {
   });
 
   it("schedules public investment and applies it once on its due turn", () => {
-    const investment = advanceTurn(createInitialEconomy(), {
+    const investment = advanceTurn(runningEconomy(), {
       ...policies,
       publicSpending: 400,
       minimumWage: 12,
@@ -262,7 +293,7 @@ describe("advanceTurn", () => {
       tariffRate: 5,
       energySubsidy: 0,
     };
-    const turnTwo = advanceTurn(createInitialEconomy(), fullPolicies, () => 1);
+    const turnTwo = advanceTurn(runningEconomy(), fullPolicies, () => 1);
     const rolls = [0, 0];
     const energyShock = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
 
@@ -282,7 +313,7 @@ describe("advanceTurn", () => {
       tariffRate: 5,
       energySubsidy: 0,
     };
-    const turnTwo = advanceTurn(createInitialEconomy(), fullPolicies, () => 1);
+    const turnTwo = advanceTurn(runningEconomy(), fullPolicies, () => 1);
     const rolls = [0, 0];
     const event = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
 
@@ -304,7 +335,7 @@ describe("advanceTurn", () => {
       tariffRate: 5,
       energySubsidy: 0,
     };
-    const turnTwo = advanceTurn(createInitialEconomy(), fullPolicies, () => 1);
+    const turnTwo = advanceTurn(runningEconomy(), fullPolicies, () => 1);
     const rolls = [0, 0.2];
     const recession = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
 
@@ -329,7 +360,7 @@ describe("advanceTurn", () => {
       tariffRate: 5,
       energySubsidy: 0,
     };
-    const turnTwo = advanceTurn(createInitialEconomy(), fullPolicies, () => 1);
+    const turnTwo = advanceTurn(runningEconomy(), fullPolicies, () => 1);
     const quiet = advanceTurn(turnTwo, fullPolicies, () => 1);
     const rolls = [0, (index + 0.1) / 6];
     const event = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
@@ -348,7 +379,7 @@ describe("advanceTurn", () => {
 
   it("uses the safe first event if the injected event-choice roll is non-finite", () => {
     const fullPolicies = { ...policies, minimumWage: 12, tariffRate: 5, energySubsidy: 0 };
-    const turnTwo = advanceTurn(createInitialEconomy(), fullPolicies, () => 1);
+    const turnTwo = advanceTurn(runningEconomy(), fullPolicies, () => 1);
     const rolls = [0, Number.NaN];
     const event = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
 
@@ -356,21 +387,21 @@ describe("advanceTurn", () => {
   });
 
   it("writes state-based headlines for inflation, deficits, and unemployment", () => {
-    const inflationary = advanceTurn({ ...createInitialEconomy(), inflation: 4.5 }, {
+    const inflationary = advanceTurn(runningEconomy({ inflation: 4.5 }), {
       ...policies,
       publicSpending: 500,
       minimumWage: 30,
       tariffRate: 40,
       energySubsidy: 0,
     }, () => 1);
-    const deficit = advanceTurn({ ...createInitialEconomy(), treasury: -100 }, {
+    const deficit = advanceTurn(runningEconomy({ treasury: -100 }), {
       ...policies,
       taxRate: 0,
       minimumWage: 12,
       tariffRate: 5,
       energySubsidy: 0,
     }, () => 1);
-    const jobLosses = advanceTurn({ ...createInitialEconomy(), unemployment: 10 }, {
+    const jobLosses = advanceTurn(runningEconomy({ unemployment: 10 }), {
       ...policies,
       publicSpending: 0,
       minimumWage: 12,
@@ -385,7 +416,7 @@ describe("advanceTurn", () => {
 
   it("rejects invalid numeric state instead of propagating it", () => {
     const economy = {
-      ...createInitialEconomy(),
+      ...runningEconomy(),
       population: Number.NaN,
     };
 
@@ -396,7 +427,7 @@ describe("advanceTurn", () => {
 
   it("requires sustained low approval and high unrest before overthrow", () => {
     const economy = {
-      ...createInitialEconomy(),
+      ...runningEconomy(),
       approval: 5,
       unrest: 90,
       groups: { workers: 5, businesses: 5, publicSector: 5 },
@@ -410,10 +441,29 @@ describe("advanceTurn", () => {
     expect(advanceTurn(overthrow, policies, () => 1)).toBe(overthrow);
   });
 
+  it.fails("keeps event-driven approval low long enough for an overthrow at maximum unrest", () => {
+    const economy = runningEconomy({
+      turn: 2,
+      ...policies,
+      approval: 25.5,
+      unrest: 100,
+      groups: { workers: 25.5, businesses: 25.5, publicSector: 25.5 },
+    });
+    const rolls = [0, 0.99];
+    const borrowingShock = advanceTurn(economy, policies, () => rolls.shift() ?? 1);
+
+    expect(borrowingShock.approval).toBeLessThan(borrowingShock.rules.overthrowApproval);
+    expect(borrowingShock.unrest).toBe(100);
+    expect(borrowingShock.overthrowRiskTurns).toBe(1);
+
+    const nextTurn = advanceTurn(borrowingShock, policies, () => 1);
+    expect(nextTurn.outcome).toMatchObject({ kind: "defeat", reason: /overthrow/i });
+  });
+
   it("allows recovery before the fiscal insolvency grace period expires", () => {
     const policy = { taxRate: 60, publicSpending: 0, interestRate: 3 };
     const unstable = {
-      ...createInitialEconomy(),
+      ...runningEconomy(),
       treasury: -1100,
       insolvencyTurns: 1,
     };
@@ -425,7 +475,7 @@ describe("advanceTurn", () => {
   });
 
   it("ends after two insolvent turns and reports the fiscal crisis", () => {
-    const economy = { ...createInitialEconomy(), treasury: -1100 };
+    const economy = runningEconomy({ treasury: -1100 });
     const first = advanceTurn(economy, { taxRate: 0, publicSpending: 0, interestRate: 3 }, () => 1);
     const defeated = advanceTurn(first, { taxRate: 0, publicSpending: 0, interestRate: 3 }, () => 1);
 
@@ -433,12 +483,12 @@ describe("advanceTurn", () => {
     expect(defeated.outcome?.report).toMatchObject({
       approval: defeated.approval,
       unrest: defeated.unrest,
-      populationChange: defeated.population - defeated.termStart.population,
+      populationChange: defeated.population - defeated.gameStart.population,
     });
   });
 
   it("ends after three consecutive turns below the GDP threshold", () => {
-    let economy = { ...createInitialEconomy(), gdp: 400 };
+    let economy = runningEconomy({ gdp: 400 });
     for (let turn = 0; turn < 2; turn += 1) {
       economy = advanceTurn(economy, policies, () => 1);
       expect(economy.outcome).toBeNull();
@@ -448,29 +498,32 @@ describe("advanceTurn", () => {
   });
 
   it("ends immediately at zero population and prioritizes that report reason", () => {
-    const economy = { ...createInitialEconomy(), population: 0, treasury: -2000, gdp: 100 };
+    const economy = runningEconomy({ population: 0, treasury: -2000, gdp: 100 });
     const defeated = advanceTurn(economy, policies, () => 1);
 
     expect(defeated.outcome).toMatchObject({ kind: "defeat", reason: /population collapse/i });
   });
 
-  it("awards milestones once and records a surviving full-term victory", () => {
-    const initial = createInitialEconomy({ termLength: 2 });
-    const policy = { taxRate: 60, publicSpending: 300, interestRate: 3, minimumWage: 12, tariffRate: 5, energySubsidy: 100 };
-    const victory = advanceTurn(initial, policy, () => 1);
-    const repeated = advanceTurn(victory, policy, () => 1);
+  it("continues indefinitely without a term-based victory", () => {
+    let economy = runningEconomy();
+    for (let turn = 0; turn < 25; turn += 1) {
+      economy = advanceTurn(economy, {
+        taxRate: 60,
+        publicSpending: 300,
+        interestRate: 3,
+        minimumWage: 12,
+        tariffRate: 5,
+        energySubsidy: 100,
+      }, () => 1);
+    }
 
-    expect(victory.outcome).toMatchObject({ kind: "victory", reason: /term/i });
-    expect(victory.achievements).toContain("fullTerm");
-    expect(victory.achievements).toContain("balancedBudget");
-    expect(victory.achievements).toContain("priceStability");
-    expect(victory.achievements).toContain("resilientInvestment");
-    expect(repeated).toBe(victory);
-    expect(victory.achievements.filter((item) => item === "fullTerm")).toHaveLength(1);
+    expect(economy.turn).toBe(26);
+    expect(economy.outcome).toBeNull();
+    expect(economy.achievements).not.toContain("fullTerm");
   });
 
   it("keeps economic indicators finite and clamps GDP and unemployment", () => {    const economy: Economy = {
-      ...createInitialEconomy(),
+      ...runningEconomy(),
       gdp: -10,
       unemployment: 150,
       treasury: -100,
@@ -492,7 +545,7 @@ describe("advanceTurn", () => {
     expect(nextEconomy.unemployment).toBe(100);
 
     const noUnemployment = advanceTurn(
-      { ...createInitialEconomy(), unemployment: -10 },
+      runningEconomy({ unemployment: -10 }),
       policies,
     );
     expect(noUnemployment.unemployment).toBe(0);
@@ -501,7 +554,7 @@ describe("advanceTurn", () => {
   it("replaces NaN indicators with their safe fallback values", () => {
     const nextEconomy = advanceTurn(
       {
-        ...createInitialEconomy(),
+        ...runningEconomy(),
         gdp: Number.NaN,
         inflation: Number.NaN,
         treasury: Number.NaN,
@@ -532,7 +585,7 @@ describe("advanceTurn", () => {
   ])("rejects $key value $value", ({ key, value, min, max }) => {
     const invalidPolicies = { ...policies, [key]: value };
 
-    expect(() => advanceTurn(createInitialEconomy(), invalidPolicies)).toThrow(
+    expect(() => advanceTurn(runningEconomy(), invalidPolicies)).toThrow(
       new RegExp(`${key}.*${min}.*${max}`),
     );
   });

@@ -14,14 +14,13 @@ type Policies = Pick<
   "taxRate" | "publicSpending" | "interestRate" | "minimumWage" | "tariffRate" | "energySubsidy"
 >;
 type PolicyInputs = { [Key in keyof Policies]: string };
-type RequestAction = "advance" | "reset" | "event" | null;
+type RequestAction = "advance" | "start" | "reset" | "event" | null;
 const TURN_INTERVAL_MS = 1000;
 
 const ACHIEVEMENT_LABELS: Record<AchievementId, string> = {
   balancedBudget: "Balanced budget",
   priceStability: "Price stability",
   weatheredRecession: "Weathered a recession",
-  fullTerm: "Completed a term",
   resilientInvestment: "Resilient investment",
 };
 
@@ -147,6 +146,7 @@ function App() {
     if (
       !currentPolicies ||
       !currentEconomy ||
+      !currentEconomy.started ||
       currentEconomy.pendingEvent ||
       currentEconomy.outcome ||
       requestLocked.current
@@ -175,15 +175,42 @@ function App() {
     }
   }
 
+  async function startGame() {
+    const currentPolicies = policiesRef.current;
+    if (!currentPolicies || requestLocked.current) return;
+
+    requestLocked.current = true;
+    setActiveRequest("start");
+    setError(null);
+    try {
+      const result = await requestEconomy("/api/economy/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(numericPoliciesFrom(currentPolicies)),
+      });
+      economyRef.current = result;
+      setEconomy(result);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to start the game.",
+      );
+    } finally {
+      requestLocked.current = false;
+      setActiveRequest(null);
+    }
+  }
+
   useEffect(() => {
-    if (!isReady || economy?.pendingEvent || economy?.outcome) return;
+    if (!isReady || !economy?.started || economy.pendingEvent || economy.outcome) return;
 
     const interval = window.setInterval(() => {
       void advanceTurn();
     }, TURN_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
-  }, [isReady, economy?.pendingEvent, economy?.outcome]);
+  }, [isReady, economy?.started, economy?.pendingEvent, economy?.outcome]);
 
   async function answerEvent(choice: EventChoice) {
     if (requestLocked.current) return;
@@ -282,7 +309,7 @@ function App() {
           <div className="turn-marker" aria-label={`Turn ${economy.turn}`}>
             <span className="turn-marker-label">CURRENT TURN</span>
             <span className="turn-marker-value">{String(economy.turn).padStart(2, "0")}</span>
-            <span className="turn-marker-note">LIVE CYCLE</span>
+            <span className="turn-marker-note">{economy.started ? "LIVE CYCLE" : "NOT STARTED"}</span>
           </div>
         </section>
 
@@ -446,7 +473,7 @@ function App() {
 
         {economy.outcome && (
           <section className="final-report" aria-labelledby="final-report-title">
-            <p className="eyebrow">END OF TERM / {economy.outcome.kind.toUpperCase()}</p>
+            <p className="eyebrow">GAME OVER / {economy.outcome.kind.toUpperCase()}</p>
             <h2 id="final-report-title">Final report</h2>
             <p className="outcome-reason">{economy.outcome.reason}</p>
             <dl className="report-grid">
@@ -471,17 +498,31 @@ function App() {
         <section className="policy-section" aria-labelledby="policy-title">
           <div className="section-heading policy-heading">
             <div>
-              <p className="eyebrow">POLICY DESK / LIVE LEVERS</p>
+              <p className="eyebrow">
+                {economy.started ? "POLICY DESK / LIVE LEVERS" : "POLICY DESK / SET BEFORE START"}
+              </p>
               <h2 id="policy-title">Policy settings</h2>
             </div>
-            <button
-              className="button button-secondary reset-button"
-              type="button"
-              onClick={resetGame}
-              disabled={isBusy}
-            >
-              {activeRequest === "reset" ? "Resetting..." : "Reset game"}
-            </button>
+            <div className="policy-actions">
+              {!economy.started && (
+                <button
+                  className="button button-primary"
+                  type="button"
+                  onClick={() => void startGame()}
+                  disabled={isBusy}
+                >
+                  {activeRequest === "start" ? "Starting..." : "Start game"}
+                </button>
+              )}
+              <button
+                className="button button-secondary reset-button"
+                type="button"
+                onClick={() => void resetGame()}
+                disabled={isBusy}
+              >
+                {activeRequest === "reset" ? "Resetting..." : "Reset game"}
+              </button>
+            </div>
           </div>
 
           <div className="policy-grid">
@@ -497,7 +538,7 @@ function App() {
                     value={policies.taxRate}
                     onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
                     onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset"}
+                    disabled={activeRequest === "reset" || activeRequest === "start"}
                   />
                   <span className="input-range">0—60%</span>
                   <span className="policy-note">Revenue for the state; less disposable income.</span>
@@ -515,7 +556,7 @@ function App() {
                     value={policies.publicSpending}
                     onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
                     onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset"}
+                    disabled={activeRequest === "reset" || activeRequest === "start"}
                   />
                   <span className="input-range">$0—$500</span>
                   <span className="policy-note">Immediate cost; large investment can raise future output.</span>
@@ -533,7 +574,7 @@ function App() {
                     value={policies.interestRate}
                     onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
                     onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset"}
+                    disabled={activeRequest === "reset" || activeRequest === "start"}
                   />
                   <span className="input-range">0—20%</span>
                   <span className="policy-note">Can cool prices while weighing on borrowing and growth.</span>
@@ -544,7 +585,7 @@ function App() {
                 <div className="input-row">
                   <input id="minimum-wage" type="number" min={0} max={30} step="any" value={policies.minimumWage}
                     onChange={(event) => updatePolicy("minimumWage", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset"} />
+                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
                   <span className="input-range">$0—$30</span>
                   <span className="policy-note">Supports wages; may raise hiring costs and prices.</span>
                 </div>
@@ -554,7 +595,7 @@ function App() {
                 <div className="input-row">
                   <input id="tariff-rate" type="number" min={0} max={40} step="any" value={policies.tariffRate}
                     onChange={(event) => updatePolicy("tariffRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset"} />
+                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
                   <span className="input-range">0—40%</span>
                   <span className="policy-note">Shelters some producers; raises import costs.</span>
                 </div>
@@ -564,7 +605,7 @@ function App() {
                 <div className="input-row">
                   <input id="energy-subsidy" type="number" min={0} max={300} step="any" value={policies.energySubsidy}
                     onChange={(event) => updatePolicy("energySubsidy", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset"} />
+                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
                   <span className="input-range">$0—$300</span>
                   <span className="policy-note">Reduces household costs; draws on the treasury.</span>
                 </div>

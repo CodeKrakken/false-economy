@@ -6,6 +6,7 @@ const app = createApp(() => 1);
 
 const initialEconomy = {
   turn: 1,
+  started: false,
   gdp: 1000,
   growthRate: 2,
   inflation: 2,
@@ -32,9 +33,8 @@ const initialEconomy = {
   history: [],
   achievements: [],
   outcome: null,
-  termStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
+  gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
   rules: {
-    termLength: 20,
     overthrowApproval: 25,
     overthrowUnrest: 80,
     overthrowGraceTurns: 2,
@@ -51,6 +51,13 @@ const policies = {
   interestRate: 4,
 };
 
+async function startEconomy(
+  targetApp = app,
+  input = { ...policies, minimumWage: 12, tariffRate: 5, energySubsidy: 0 },
+) {
+  return request(targetApp).post("/api/economy/start").send(input);
+}
+
 describe("Economy API", () => {
   beforeEach(async () => {
     await request(app).post("/api/economy/reset");
@@ -64,6 +71,7 @@ describe("Economy API", () => {
   });
 
   it("resets the economy to its initial state", async () => {
+    await startEconomy();
     await request(app).post("/api/economy/turn").send(policies);
 
     const response = await request(app).post("/api/economy/reset");
@@ -73,6 +81,7 @@ describe("Economy API", () => {
   });
 
   it("accepts policies and returns the advanced economy", async () => {
+    await startEconomy();
     const response = await request(app)
       .post("/api/economy/turn")
       .send(policies);
@@ -80,6 +89,7 @@ describe("Economy API", () => {
     expect(response.status).toBe(200);
     expect(response.body).toStrictEqual({
       turn: 2,
+      started: true,
       gdp: 1025,
       growthRate: 2.5,
       inflation: 1.85,
@@ -98,13 +108,13 @@ describe("Economy API", () => {
       collapseTurns: 0,
       headline: "Growth steadies as the policy experiment continues",
       history: [{
-        turn: 2,
+        turn: 1,
         type: "policy",
         text: "Policy changed: taxes 25 to 30, public spending 200 to 250, interest rates 3 to 4.",
       }],
       achievements: ["balancedBudget", "priceStability"],
       outcome: null,
-      termStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
+      gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
       rules: initialEconomy.rules,
       minimumWage: 12,
       tariffRate: 5,
@@ -114,6 +124,7 @@ describe("Economy API", () => {
   });
 
   it("accepts all six policy areas and validates the added ranges", async () => {
+    await startEconomy();
     const response = await request(app)
       .post("/api/economy/turn")
       .send({ ...policies, minimumWage: 18, tariffRate: 20, energySubsidy: 80 });
@@ -136,6 +147,7 @@ describe("Economy API", () => {
   it("allows an event response only when a decision is pending", async () => {
     const eventApp = createApp(() => 0);
     const completePolicies = { ...policies, minimumWage: 12, tariffRate: 5, energySubsidy: 0 };
+    await startEconomy(eventApp, completePolicies);
     await request(eventApp).post("/api/economy/turn").send(completePolicies);
     const eventResponse = await request(eventApp).post("/api/economy/turn").send(completePolicies);
     expect(eventResponse.body.pendingEvent.type).toBe("energyShock");
@@ -163,17 +175,20 @@ describe("Economy API", () => {
     expect(missingChoice.body.error).toMatch(/choice must be/i);
   });
 
-  it("continues advancing beyond the former five-turn limit", async () => {
+  it("continues advancing beyond the former 20-turn term", async () => {
+    await startEconomy();
     let response;
-    for (let turn = 0; turn < 6; turn += 1) {
+    for (let turn = 0; turn < 25; turn += 1) {
       response = await request(app).post("/api/economy/turn").send(policies);
       expect(response.status).toBe(200);
     }
 
-    expect(response?.body.turn).toBe(7);
+    expect(response?.body.turn).toBe(26);
+    expect(response?.body.outcome).toBeNull();
   });
 
   it("returns a descriptive 400 error for invalid policy values", async () => {
+    await startEconomy();
     const response = await request(app)
       .post("/api/economy/turn")
       .send({ ...policies, taxRate: 61 });
@@ -219,6 +234,7 @@ describe("Economy API", () => {
     ["publicSpending", 501],
     ["interestRate", 21],
   ])("returns a range error for %s", async (field, value) => {
+    await startEconomy();
     const response = await request(app)
       .post("/api/economy/turn")
       .send({ ...policies, [field]: value });
@@ -241,5 +257,43 @@ describe("Economy API", () => {
     const response = await request(app).get("/api/unsupported");
 
     expect(response.status).toBe(404);
+  });
+
+  it("requires an explicit start before advancing", async () => {
+    const response = await request(app).post("/api/economy/turn").send(policies);
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toMatch(/start the game/i);
+  });
+
+  it("starts with the selected policies and does not advance the turn", async () => {
+    const selectedPolicies = {
+      taxRate: 35,
+      publicSpending: 300,
+      interestRate: 5,
+      minimumWage: 16,
+      tariffRate: 12,
+      energySubsidy: 40,
+    };
+    const response = await startEconomy(app, selectedPolicies);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      started: true,
+      turn: 1,
+      ...selectedPolicies,
+    });
+    expect(response.body.history).toHaveLength(1);
+  });
+
+  it("validates policy fields submitted to start", async () => {
+    const missingPolicy = await request(app)
+      .post("/api/economy/start")
+      .send({ taxRate: 30, publicSpending: 250 });
+    expect(missingPolicy.status).toBe(400);
+
+    const invalidRange = await startEconomy(app, { ...policies, taxRate: 61 });
+    expect(invalidRange.status).toBe(400);
+    expect(invalidRange.body.error).toMatch(/taxRate.*0.*60/);
   });
 });

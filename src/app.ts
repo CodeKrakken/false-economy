@@ -5,12 +5,45 @@ import {
   advanceTurn,
   createInitialEconomy,
   resolveEventDecision,
+  startGame,
   type EventChoice,
   type PolicyInput,
 } from "./economy.js";
 
 const REQUIRED_POLICY_FIELDS = ["taxRate", "publicSpending", "interestRate"] as const;
 const OPTIONAL_POLICY_FIELDS = ["minimumWage", "tariffRate", "energySubsidy"] as const;
+
+function parsePolicyInput(body: unknown): { policyInput: PolicyInput } | { error: string } {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { error: "Request body must be an object containing all three policy fields." };
+  }
+
+  const values = body as Record<string, unknown>;
+  for (const field of REQUIRED_POLICY_FIELDS) {
+    if (typeof values[field] !== "number" || !Number.isFinite(values[field])) {
+      return { error: `${field} must be a finite number.` };
+    }
+  }
+  for (const field of OPTIONAL_POLICY_FIELDS) {
+    if (
+      field in values &&
+      (typeof values[field] !== "number" || !Number.isFinite(values[field]))
+    ) {
+      return { error: `${field} must be a finite number.` };
+    }
+  }
+
+  return {
+    policyInput: {
+      taxRate: values.taxRate as number,
+      publicSpending: values.publicSpending as number,
+      interestRate: values.interestRate as number,
+      ...(typeof values.minimumWage === "number" ? { minimumWage: values.minimumWage } : {}),
+      ...(typeof values.tariffRate === "number" ? { tariffRate: values.tariffRate } : {}),
+      ...(typeof values.energySubsidy === "number" ? { energySubsidy: values.energySubsidy } : {}),
+    },
+  };
+}
 
 export function createApp(random: () => number = Math.random) {
   const app = express();
@@ -27,43 +60,39 @@ export function createApp(random: () => number = Math.random) {
     response.json(currentEconomy);
   });
 
-  app.post("/api/economy/turn", (request, response, next) => {
-    const body: unknown = request.body;
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      response.status(400).json({
-        error: "Request body must be an object containing all three policy fields.",
-      });
+  app.post("/api/economy/start", (request, response, next) => {
+    const parsed = parsePolicyInput(request.body);
+    if ("error" in parsed) {
+      response.status(400).json({ error: parsed.error });
       return;
     }
 
-    const values = body as Record<string, unknown>;
-    for (const field of REQUIRED_POLICY_FIELDS) {
-      if (typeof values[field] !== "number" || !Number.isFinite(values[field])) {
-        response.status(400).json({ error: `${field} must be a finite number.` });
+    try {
+      currentEconomy = startGame(currentEconomy, parsed.policyInput);
+      response.json(currentEconomy);
+    } catch (error) {
+      if (error instanceof RangeError) {
+        response.status(400).json({ error: error.message });
         return;
       }
-    }
-    for (const field of OPTIONAL_POLICY_FIELDS) {
-      if (
-        field in values &&
-        (typeof values[field] !== "number" || !Number.isFinite(values[field]))
-      ) {
-        response.status(400).json({ error: `${field} must be a finite number.` });
-        return;
-      }
-    }
 
-    const policyInput: PolicyInput = {
-      taxRate: values.taxRate as number,
-      publicSpending: values.publicSpending as number,
-      interestRate: values.interestRate as number,
-      ...(typeof values.minimumWage === "number" ? { minimumWage: values.minimumWage } : {}),
-      ...(typeof values.tariffRate === "number" ? { tariffRate: values.tariffRate } : {}),
-      ...(typeof values.energySubsidy === "number" ? { energySubsidy: values.energySubsidy } : {}),
-    };
+      next(error);
+    }
+  });
+
+  app.post("/api/economy/turn", (request, response, next) => {
+    const parsed = parsePolicyInput(request.body);
+    if ("error" in parsed) {
+      response.status(400).json({ error: parsed.error });
+      return;
+    }
+    if (!currentEconomy.started) {
+      response.status(409).json({ error: "Start the game before advancing a turn." });
+      return;
+    }
 
     try {
-      currentEconomy = advanceTurn(currentEconomy, policyInput, random);
+      currentEconomy = advanceTurn(currentEconomy, parsed.policyInput, random);
       response.json(currentEconomy);
     } catch (error) {
       if (error instanceof RangeError) {
