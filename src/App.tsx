@@ -8,24 +8,13 @@ import {
   type EventChoice,
   type IndicatorSnapshot,
 } from "./economy.js";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import PolicyControl from "./PolicyControl";
+import CompetingInterests from "./CompetingInterests";
+import EconomicIndicators from "./EconomicIndicators";
+import PolicySettings from "./PolicySettings";
+import type { ActiveRequest, Policies, PolicyInputs } from "./PolicySettings";
+import { formatIndicator, formatMoney, formatPercent, formatPopulation } from "./indicators";
 import "./styles.css";
 
-type Policies = Pick<
-  Economy,
-  "taxRate" | "publicSpending" | "interestRate" | "minimumWage" | "tariffRate" | "energySubsidy"
->;
-type PolicyInputs = { [Key in keyof Policies]: string };
-type RequestAction = "advance" | "start" | "reset" | "event" | null;
 const TURN_INTERVAL_MS = 1000;
 
 const ACHIEVEMENT_LABELS: Record<AchievementId, string> = {
@@ -34,103 +23,6 @@ const ACHIEVEMENT_LABELS: Record<AchievementId, string> = {
   weatheredRecession: "Weathered a recession",
   resilientInvestment: "Resilient investment",
 };
-
-type IndicatorKey = Exclude<keyof IndicatorSnapshot, "turn">;
-type IndicatorFormat = "money" | "percent" | "wage" | "population";
-type Indicator = {
-  key: IndicatorKey;
-  name: string;
-  unit: string;
-  format: IndicatorFormat;
-  color: string;
-};
-
-const INDICATORS: Indicator[] = [
-  { key: "gdp", name: "Gross domestic product", unit: "GDP", format: "money", color: "#b30d08" },
-  { key: "inflation", name: "Inflation", unit: "ANNUAL RATE", format: "percent", color: "#a05a20" },
-  { key: "unemployment", name: "Unemployment", unit: "WORKFORCE", format: "percent", color: "#406d70" },
-  { key: "averageWage", name: "Average wage", unit: "HOURLY PAY", format: "wage", color: "#4d6d50" },
-  { key: "treasury", name: "Treasury", unit: "PUBLIC BALANCE", format: "money", color: "#466482" },
-  { key: "debt", name: "Public debt", unit: "OUTSTANDING", format: "money", color: "#7b5151" },
-  { key: "approval", name: "Public approval", unit: "NATIONAL POLL", format: "percent", color: "#b30d08" },
-  { key: "population", name: "Population", unit: "CITIZENS", format: "population", color: "#657a43" },
-  { key: "wellbeing", name: "Wellbeing", unit: "CITIZEN INDEX", format: "percent", color: "#537d73" },
-  { key: "productiveCapacity", name: "Productive capacity", unit: "OUTPUT CEILING", format: "money", color: "#ad6d31" },
-  { key: "resourceReserves", name: "Resource reserves", unit: "RESOURCE INDEX", format: "percent", color: "#557e92" },
-  { key: "unrest", name: "Social unrest", unit: "PUBLIC TENSION", format: "percent", color: "#9f3a31" },
-];
-
-const POLICY_CONTROLS: Array<{
-  key: keyof Policies;
-  id: string;
-  label: string;
-  unit: string;
-  min: number;
-  max: number;
-  range: string;
-  note: string;
-}> = [
-  {
-    key: "taxRate",
-    id: "tax-rate",
-    label: "Tax rate",
-    unit: "%",
-    min: 0,
-    max: 60,
-    range: "0—60%",
-    note: "Revenue for the state; less disposable income.",
-  },
-  {
-    key: "publicSpending",
-    id: "public-spending",
-    label: "Public spending",
-    unit: "$",
-    min: 0,
-    max: 500,
-    range: "$0—$500",
-    note: "Immediate cost; large investment can raise future output.",
-  },
-  {
-    key: "interestRate",
-    id: "interest-rate",
-    label: "Interest rate",
-    unit: "%",
-    min: 0,
-    max: 20,
-    range: "0—20%",
-    note: "Can cool prices while weighing on borrowing and growth.",
-  },
-  {
-    key: "minimumWage",
-    id: "minimum-wage",
-    label: "Minimum wage",
-    unit: "$ / hour",
-    min: 0,
-    max: 30,
-    range: "$0—$30",
-    note: "Supports wages; may raise hiring costs and prices.",
-  },
-  {
-    key: "tariffRate",
-    id: "tariff-rate",
-    label: "Tariff rate",
-    unit: "%",
-    min: 0,
-    max: 40,
-    range: "0—40%",
-    note: "Shelters some producers; raises import costs.",
-  },
-  {
-    key: "energySubsidy",
-    id: "energy-subsidy",
-    label: "Energy subsidy",
-    unit: "$",
-    min: 0,
-    max: 300,
-    range: "$0—$300",
-    note: "Reduces household costs; draws on the treasury.",
-  },
-];
 
 async function requestEconomy(path: string, init?: RequestInit): Promise<Economy> {
   const response = await fetch(path, init);
@@ -178,38 +70,6 @@ function numericPoliciesFrom(inputs: PolicyInputs): Policies {
   };
 }
 
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatWage(value: number): string {
-  return `${new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value)}/hr`;
-}
-
-function formatPopulation(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
-}
-
-function formatIndicator(value: number, format: IndicatorFormat): string {
-  if (!Number.isFinite(value)) return "N/A";
-  if (format === "money") return formatMoney(value);
-  if (format === "percent") return formatPercent(value);
-  if (format === "wage") return formatWage(value);
-  return formatPopulation(value);
-}
-
 function snapshotFor(economy: Economy): IndicatorSnapshot {
   return {
     turn: economy.turn,
@@ -244,7 +104,7 @@ function App() {
   const [economy, setEconomy] = useState<Economy | null>(null);
   const [policies, setPolicies] = useState<PolicyInputs | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeRequest, setActiveRequest] = useState<RequestAction>(null);
+  const [activeRequest, setActiveRequest] = useState<ActiveRequest>(null);
   const [error, setError] = useState<string | null>(null);
   const requestLocked = useRef(false);
   const economyRef = useRef<Economy | null>(economy);
@@ -460,71 +320,7 @@ function App() {
 
         {error && <p className="error-message" role="alert">{error}</p>}
 
-        <section className="economy-section" aria-labelledby="indicators-title">
-          <div className="section-heading">
-            <h2 id="indicators-title">Economic indicators</h2>
-          </div>
-
-            <dl className="metrics-grid">
-              {INDICATORS.map((indicator) => {
-                const value = economy[indicator.key];
-                const chartData = indicatorHistory.map((entry) => ({
-                  turn: entry.turn,
-                  value: Number.isFinite(entry[indicator.key]) ? entry[indicator.key] : null,
-                }));
-                return (
-                  <div
-                    className={`metric${indicator.key === "gdp" ? " metric-primary" : ""}`}
-                    key={indicator.key}
-                  >
-                    <dt>{indicator.name}</dt>
-                    <dd className="metric-readout">
-                      <div
-                        className="metric-chart"
-                        role="img"
-                        aria-label={`${indicator.name} history through turn ${economy.turn}`}
-                      >
-                        <ResponsiveContainer width="100%" height={64} minWidth={0} initialDimension={{ width: 260, height: 64 }}>
-                          <LineChart data={chartData} margin={{ top: 5, right: 4, bottom: 0, left: 4 }}>
-                            <CartesianGrid vertical={false} stroke="#e4dfd6" />
-                            <XAxis
-                              dataKey="turn"
-                              type="number"
-                              tickCount={3}
-                              tick={{ fontSize: 9, fill: "#66635e" }}
-                              tickLine={false}
-                              axisLine={false}
-                            />
-                            <YAxis hide domain={["auto", "auto"]} />
-                            <Tooltip
-                              labelFormatter={(turn) => `Turn ${turn}`}
-                              formatter={(chartValue) => formatIndicator(Number(chartValue), indicator.format)}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="value"
-                              stroke={indicator.color}
-                              strokeWidth={2}
-                              dot={indicatorHistory.length === 1 ? { r: 2 } : false}
-                              activeDot={{ r: 3 }}
-                              connectNulls={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="metric-value">
-                        <span className="metric-current">{formatIndicator(value, indicator.format)}</span>
-                        <span className="metric-unit">{indicator.unit}</span>
-                        {indicator.key === "gdp" && (
-                          <span className="metric-growth">{formatPercent(economy.growthRate)} growth</span>
-                        )}
-                      </div>
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-        </section>
+        <EconomicIndicators economy={economy} history={indicatorHistory} />
 
         {economy.pendingEvent && (
           <section className="event-panel" aria-labelledby="event-title">
@@ -545,51 +341,16 @@ function App() {
         )}
 
         <div className="decision-grid">
-          <section className="policy-section" aria-labelledby="policy-title">
-            <div className="section-heading policy-heading">
-              <div>
-                <p className="eyebrow">
-                  {economy.started ? "POLICY DESK / LIVE LEVERS" : "POLICY DESK / SET BEFORE START"}
-                </p>
-                <h2 id="policy-title">Policy settings</h2>
-              </div>
-              <div className="policy-actions">
-                {!economy.started && (
-                  <button className="button button-primary" type="button"
-                    onClick={() => void startGame()} disabled={isBusy}>
-                    {activeRequest === "start" ? "Starting..." : "Start game"}
-                  </button>
-                )}
-                <button className="button button-secondary reset-button" type="button"
-                  onClick={() => void resetGame()} disabled={isBusy}>
-                  {activeRequest === "reset" ? "Resetting..." : "Reset game"}
-                </button>
-              </div>
-            </div>
-            <div className="policy-grid">
-              {POLICY_CONTROLS.map(({ key, ...control }) => (
-                <PolicyControl
-                  key={key}
-                  {...control}
-                  value={policies[key]}
-                  onChange={(value) => updatePolicy(key, value)}
-                  onKeyDown={handlePolicyKeyDown}
-                  disabled={activeRequest === "reset" || activeRequest === "start"}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="groups-section" aria-labelledby="groups-title">
-            <div className="section-heading">
-              <h2 id="groups-title">Competing interests</h2>
-            </div>
-            <dl className="groups-grid">
-              <div><dt>Workers</dt><dd>{formatPercent(economy.groups.workers)}</dd></div>
-              <div><dt>Businesses</dt><dd>{formatPercent(economy.groups.businesses)}</dd></div>
-              <div><dt>Public sector</dt><dd>{formatPercent(economy.groups.publicSector)}</dd></div>
-            </dl>
-          </section>
+          <PolicySettings
+            policies={policies}
+            started={economy.started}
+            activeRequest={activeRequest}
+            onPolicyChange={updatePolicy}
+            onPolicyKeyDown={handlePolicyKeyDown}
+            onStart={() => void startGame()}
+            onReset={() => void resetGame()}
+          />
+          <CompetingInterests groups={economy.groups} />
         </div>
 
         <div className="secondary-grid">
