@@ -17,6 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import PolicyControl from "./PolicyControl";
 import "./styles.css";
 
 type Policies = Pick<
@@ -57,6 +58,78 @@ const INDICATORS: Indicator[] = [
   { key: "productiveCapacity", name: "Productive capacity", unit: "OUTPUT CEILING", format: "money", color: "#ad6d31" },
   { key: "resourceReserves", name: "Resource reserves", unit: "RESOURCE INDEX", format: "percent", color: "#557e92" },
   { key: "unrest", name: "Social unrest", unit: "PUBLIC TENSION", format: "percent", color: "#9f3a31" },
+];
+
+const POLICY_CONTROLS: Array<{
+  key: keyof Policies;
+  id: string;
+  label: string;
+  unit: string;
+  min: number;
+  max: number;
+  range: string;
+  note: string;
+}> = [
+  {
+    key: "taxRate",
+    id: "tax-rate",
+    label: "Tax rate",
+    unit: "%",
+    min: 0,
+    max: 60,
+    range: "0—60%",
+    note: "Revenue for the state; less disposable income.",
+  },
+  {
+    key: "publicSpending",
+    id: "public-spending",
+    label: "Public spending",
+    unit: "$",
+    min: 0,
+    max: 500,
+    range: "$0—$500",
+    note: "Immediate cost; large investment can raise future output.",
+  },
+  {
+    key: "interestRate",
+    id: "interest-rate",
+    label: "Interest rate",
+    unit: "%",
+    min: 0,
+    max: 20,
+    range: "0—20%",
+    note: "Can cool prices while weighing on borrowing and growth.",
+  },
+  {
+    key: "minimumWage",
+    id: "minimum-wage",
+    label: "Minimum wage",
+    unit: "$ / hour",
+    min: 0,
+    max: 30,
+    range: "$0—$30",
+    note: "Supports wages; may raise hiring costs and prices.",
+  },
+  {
+    key: "tariffRate",
+    id: "tariff-rate",
+    label: "Tariff rate",
+    unit: "%",
+    min: 0,
+    max: 40,
+    range: "0—40%",
+    note: "Shelters some producers; raises import costs.",
+  },
+  {
+    key: "energySubsidy",
+    id: "energy-subsidy",
+    label: "Energy subsidy",
+    unit: "$",
+    min: 0,
+    max: 300,
+    range: "$0—$300",
+    note: "Reduces household costs; draws on the treasury.",
+  },
 ];
 
 async function requestEconomy(path: string, init?: RequestInit): Promise<Economy> {
@@ -494,78 +567,16 @@ function App() {
               </div>
             </div>
             <div className="policy-grid">
-              <div className="policy-control">
-                <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input id="tax-rate" type="number" min={0} max={60} step="any"
-                    value={policies.taxRate}
-                    onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">0—60%</span>
-                  <span className="policy-note">Revenue for the state; less disposable income.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="public-spending">Public spending <span>($)</span></label>
-                <div className="input-row">
-                  <input id="public-spending" type="number" min={0} max={500} step="any"
-                    value={policies.publicSpending}
-                    onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">$0—$500</span>
-                  <span className="policy-note">Immediate cost; large investment can raise future output.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="interest-rate">Interest rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input id="interest-rate" type="number" min={0} max={20} step="any"
-                    value={policies.interestRate}
-                    onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">0—20%</span>
-                  <span className="policy-note">Can cool prices while weighing on borrowing and growth.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="minimum-wage">Minimum wage <span>($ / hour)</span></label>
-                <div className="input-row">
-                  <input id="minimum-wage" type="number" min={0} max={30} step="any"
-                    value={policies.minimumWage}
-                    onChange={(event) => updatePolicy("minimumWage", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">$0—$30</span>
-                  <span className="policy-note">Supports wages; may raise hiring costs and prices.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="tariff-rate">Tariff rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input id="tariff-rate" type="number" min={0} max={40} step="any"
-                    value={policies.tariffRate}
-                    onChange={(event) => updatePolicy("tariffRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">0—40%</span>
-                  <span className="policy-note">Shelters some producers; raises import costs.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="energy-subsidy">Energy subsidy <span>($)</span></label>
-                <div className="input-row">
-                  <input id="energy-subsidy" type="number" min={0} max={300} step="any"
-                    value={policies.energySubsidy}
-                    onChange={(event) => updatePolicy("energySubsidy", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">$0—$300</span>
-                  <span className="policy-note">Reduces household costs; draws on the treasury.</span>
-                </div>
-              </div>
+              {POLICY_CONTROLS.map(({ key, ...control }) => (
+                <PolicyControl
+                  key={key}
+                  {...control}
+                  value={policies[key]}
+                  onChange={(value) => updatePolicy(key, value)}
+                  onKeyDown={handlePolicyKeyDown}
+                  disabled={activeRequest === "reset" || activeRequest === "start"}
+                />
+              ))}
             </div>
           </section>
 
