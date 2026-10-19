@@ -6,7 +6,17 @@ import {
   type AchievementId,
   type Economy,
   type EventChoice,
+  type IndicatorSnapshot,
 } from "./economy.js";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import "./styles.css";
 
 type Policies = Pick<
@@ -23,6 +33,31 @@ const ACHIEVEMENT_LABELS: Record<AchievementId, string> = {
   weatheredRecession: "Weathered a recession",
   resilientInvestment: "Resilient investment",
 };
+
+type IndicatorKey = Exclude<keyof IndicatorSnapshot, "turn">;
+type IndicatorFormat = "money" | "percent" | "wage" | "population";
+type Indicator = {
+  key: IndicatorKey;
+  name: string;
+  unit: string;
+  format: IndicatorFormat;
+  color: string;
+};
+
+const INDICATORS: Indicator[] = [
+  { key: "gdp", name: "Gross domestic product", unit: "GDP", format: "money", color: "#b30d08" },
+  { key: "inflation", name: "Inflation", unit: "ANNUAL RATE", format: "percent", color: "#a05a20" },
+  { key: "unemployment", name: "Unemployment", unit: "WORKFORCE", format: "percent", color: "#406d70" },
+  { key: "averageWage", name: "Average wage", unit: "HOURLY PAY", format: "wage", color: "#4d6d50" },
+  { key: "treasury", name: "Treasury", unit: "PUBLIC BALANCE", format: "money", color: "#466482" },
+  { key: "debt", name: "Public debt", unit: "OUTSTANDING", format: "money", color: "#7b5151" },
+  { key: "approval", name: "Public approval", unit: "NATIONAL POLL", format: "percent", color: "#b30d08" },
+  { key: "population", name: "Population", unit: "CITIZENS", format: "population", color: "#657a43" },
+  { key: "wellbeing", name: "Wellbeing", unit: "CITIZEN INDEX", format: "percent", color: "#537d73" },
+  { key: "productiveCapacity", name: "Productive capacity", unit: "OUTPUT CEILING", format: "money", color: "#ad6d31" },
+  { key: "resourceReserves", name: "Resource reserves", unit: "RESOURCE INDEX", format: "percent", color: "#557e92" },
+  { key: "unrest", name: "Social unrest", unit: "PUBLIC TENSION", format: "percent", color: "#9f3a31" },
+];
 
 async function requestEconomy(path: string, init?: RequestInit): Promise<Economy> {
   const response = await fetch(path, init);
@@ -92,6 +127,32 @@ function formatWage(value: number): string {
 
 function formatPopulation(value: number): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatIndicator(value: number, format: IndicatorFormat): string {
+  if (!Number.isFinite(value)) return "N/A";
+  if (format === "money") return formatMoney(value);
+  if (format === "percent") return formatPercent(value);
+  if (format === "wage") return formatWage(value);
+  return formatPopulation(value);
+}
+
+function snapshotFor(economy: Economy): IndicatorSnapshot {
+  return {
+    turn: economy.turn,
+    gdp: economy.gdp,
+    inflation: economy.inflation,
+    unemployment: economy.unemployment,
+    averageWage: economy.averageWage,
+    treasury: economy.treasury,
+    debt: economy.debt,
+    approval: economy.approval,
+    population: economy.population,
+    wellbeing: economy.wellbeing,
+    productiveCapacity: economy.productiveCapacity,
+    resourceReserves: economy.resourceReserves,
+    unrest: economy.unrest,
+  };
 }
 
 function handlePolicyKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -297,6 +358,9 @@ function App() {
   const isBusy = activeRequest !== null;
   const warnings = getEconomicWarnings(economy);
   const advice = getAdviserAdvice(economy);
+  const indicatorHistory = economy.indicatorHistory.length > 0
+    ? economy.indicatorHistory
+    : [snapshotFor(economy)];
 
   function updatePolicy(field: keyof Policies, value: string) {
     setPolicies((current) => ({
@@ -342,67 +406,63 @@ function App() {
             </div>
 
             <dl className="metrics-grid">
-              <div className="metric metric-primary">
-                <dt>Gross domestic product</dt>
-                <dd>{formatMoney(economy.gdp)}</dd>
-                <span className="metric-unit">GDP</span>
-                <span className="metric-growth">{formatPercent(economy.growthRate)} growth</span>
-              </div>
-              <div className="metric">
-                <dt>Inflation</dt>
-                <dd>{formatPercent(economy.inflation)}</dd>
-                <span className="metric-unit">ANNUAL RATE</span>
-              </div>
-              <div className="metric">
-                <dt>Unemployment</dt>
-                <dd>{formatPercent(economy.unemployment)}</dd>
-                <span className="metric-unit">WORKFORCE</span>
-              </div>
-              <div className="metric">
-                <dt>Average wage</dt>
-                <dd>{formatWage(economy.averageWage)}</dd>
-                <span className="metric-unit">HOURLY PAY</span>
-              </div>
-              <div className="metric">
-                <dt>Treasury</dt>
-                <dd>{formatMoney(economy.treasury)}</dd>
-                <span className="metric-unit">PUBLIC BALANCE</span>
-              </div>
-              <div className="metric">
-                <dt>Public debt</dt>
-                <dd>{formatMoney(economy.debt)}</dd>
-                <span className="metric-unit">OUTSTANDING</span>
-              </div>
-              <div className="metric">
-                <dt>Public approval</dt>
-                <dd>{formatPercent(economy.approval)}</dd>
-                <span className="metric-unit">NATIONAL POLL</span>
-              </div>
-              <div className="metric">
-                <dt>Population</dt>
-                <dd>{formatPopulation(economy.population)}</dd>
-                <span className="metric-unit">CITIZENS</span>
-              </div>
-              <div className="metric">
-                <dt>Wellbeing</dt>
-                <dd>{formatPercent(economy.wellbeing)}</dd>
-                <span className="metric-unit">CITIZEN INDEX</span>
-              </div>
-              <div className="metric">
-                <dt>Productive capacity</dt>
-                <dd>{formatMoney(economy.productiveCapacity)}</dd>
-                <span className="metric-unit">OUTPUT CEILING</span>
-              </div>
-              <div className="metric">
-                <dt>Resource reserves</dt>
-                <dd>{formatPercent(economy.resourceReserves)}</dd>
-                <span className="metric-unit">RESOURCE INDEX</span>
-              </div>
-              <div className="metric">
-                <dt>Social unrest</dt>
-                <dd>{formatPercent(economy.unrest)}</dd>
-                <span className="metric-unit">PUBLIC TENSION</span>
-              </div>
+              {INDICATORS.map((indicator) => {
+                const value = economy[indicator.key];
+                const chartData = indicatorHistory.map((entry) => ({
+                  turn: entry.turn,
+                  value: Number.isFinite(entry[indicator.key]) ? entry[indicator.key] : null,
+                }));
+                return (
+                  <div
+                    className={`metric${indicator.key === "gdp" ? " metric-primary" : ""}`}
+                    key={indicator.key}
+                  >
+                    <dt>{indicator.name}</dt>
+                    <dd className="metric-readout">
+                      <div
+                        className="metric-chart"
+                        role="img"
+                        aria-label={`${indicator.name} history through turn ${economy.turn}`}
+                      >
+                        <ResponsiveContainer width="100%" height={64} minWidth={0} initialDimension={{ width: 260, height: 64 }}>
+                          <LineChart data={chartData} margin={{ top: 5, right: 4, bottom: 0, left: 4 }}>
+                            <CartesianGrid vertical={false} stroke="#e4dfd6" />
+                            <XAxis
+                              dataKey="turn"
+                              type="number"
+                              tickCount={3}
+                              tick={{ fontSize: 9, fill: "#66635e" }}
+                              tickLine={false}
+                              axisLine={false}
+                            />
+                            <YAxis hide domain={["auto", "auto"]} />
+                            <Tooltip
+                              labelFormatter={(turn) => `Turn ${turn}`}
+                              formatter={(chartValue) => formatIndicator(Number(chartValue), indicator.format)}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="value"
+                              stroke={indicator.color}
+                              strokeWidth={2}
+                              dot={indicatorHistory.length === 1 ? { r: 2 } : false}
+                              activeDot={{ r: 3 }}
+                              connectNulls={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="metric-value">
+                        <span className="metric-current">{formatIndicator(value, indicator.format)}</span>
+                        <span className="metric-unit">{indicator.unit}</span>
+                        {indicator.key === "gdp" && (
+                          <span className="metric-growth">{formatPercent(economy.growthRate)} growth</span>
+                        )}
+                      </div>
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           </section>
 

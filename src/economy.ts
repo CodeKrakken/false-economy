@@ -46,6 +46,23 @@ export type HistoryEntry = {
   eventType?: EventType;
 };
 
+export type IndicatorSnapshot = Pick<
+  Economy,
+  | "turn"
+  | "gdp"
+  | "inflation"
+  | "unemployment"
+  | "averageWage"
+  | "treasury"
+  | "debt"
+  | "approval"
+  | "population"
+  | "wellbeing"
+  | "productiveCapacity"
+  | "resourceReserves"
+  | "unrest"
+>;
+
 export type AchievementId =
   | "balancedBudget"
   | "priceStability"
@@ -122,6 +139,7 @@ export type Economy = {
   collapseTurns: number;
   headline: string;
   history: HistoryEntry[];
+  indicatorHistory: IndicatorSnapshot[];
   achievements: AchievementId[];
   outcome: GameOutcome | null;
   gameStart: GameStart;
@@ -259,7 +277,7 @@ export function startGame(economy: Economy, input: PolicyInput): Economy {
     economy.unemployment,
     averageWage,
   );
-  return {
+  return recordIndicatorSnapshot({
     ...economy,
     ...policies,
     averageWage,
@@ -267,6 +285,32 @@ export function startGame(economy: Economy, input: PolicyInput): Economy {
     approval: approvalFor(groups),
     started: true,
     history: [...economy.history, ...policyHistory(economy, policies, economy.turn)],
+    indicatorHistory: [],
+  });
+}
+
+function recordIndicatorSnapshot(economy: Economy): Economy {
+  const snapshot: IndicatorSnapshot = {
+    turn: economy.turn,
+    gdp: economy.gdp,
+    inflation: economy.inflation,
+    unemployment: economy.unemployment,
+    averageWage: economy.averageWage,
+    treasury: economy.treasury,
+    debt: economy.debt,
+    approval: economy.approval,
+    population: economy.population,
+    wellbeing: economy.wellbeing,
+    productiveCapacity: economy.productiveCapacity,
+    resourceReserves: economy.resourceReserves,
+    unrest: economy.unrest,
+  };
+  const previous = economy.indicatorHistory.at(-1);
+  return {
+    ...economy,
+    indicatorHistory: previous?.turn === economy.turn
+      ? [...economy.indicatorHistory.slice(0, -1), snapshot]
+      : [...economy.indicatorHistory, snapshot],
   };
 }
 
@@ -646,6 +690,7 @@ export function advanceTurn(
     groups,
     pendingEffects,
     history: [...economy.history, ...entries],
+      indicatorHistory: economy.indicatorHistory,
   };
 
   if (event) {
@@ -682,7 +727,7 @@ export function advanceTurn(
     achievements: addAchievements(nextEconomy, nextEconomy.treasury - economy.treasury),
   };
 
-  return nextEconomy;
+  return recordIndicatorSnapshot(nextEconomy);
 }
 
 export function resolveEventDecision(economy: Economy, choice: EventChoice): Economy {
@@ -719,7 +764,7 @@ export function resolveEventDecision(economy: Economy, choice: EventChoice): Eco
     }],
   };
   nextEconomy = { ...nextEconomy, headline: headlineFor(nextEconomy, economy.pendingEvent) };
-  return nextEconomy;
+  return recordIndicatorSnapshot(nextEconomy);
 }
 
 export function createInitialEconomy(
@@ -755,6 +800,7 @@ export function createInitialEconomy(
     collapseTurns: 0,
     headline: "A new government inherits steady foundations",
     history: [],
+    indicatorHistory: [],
     achievements: [],
     outcome: null,
     gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },

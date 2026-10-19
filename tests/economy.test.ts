@@ -41,6 +41,7 @@ describe("createInitialEconomy", () => {
       collapseTurns: 0,
       headline: "A new government inherits steady foundations",
       history: [],
+      indicatorHistory: [],
       achievements: [],
       outcome: null,
       gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
@@ -89,10 +90,33 @@ describe("advanceTurn", () => {
       energySubsidy: 25,
     });
     expect(started.averageWage).toBe(15);
+    expect(started.indicatorHistory).toStrictEqual([{
+      turn: 1,
+      gdp: 1000,
+      inflation: 2,
+      unemployment: 5,
+      averageWage: 15,
+      treasury: 500,
+      debt: 0,
+      approval: 60.9,
+      population: 1_000_000,
+      wellbeing: 60,
+      productiveCapacity: 1600,
+      resourceReserves: 100,
+      unrest: 20,
+    }]);
     expect(started.history).toHaveLength(1);
     expect(started.history[0]).toMatchObject({ turn: 1, type: "policy" });
     expect(advanceTurn(createInitialEconomy(), policies)).toStrictEqual(createInitialEconomy());
     expect(() => startGame(started, policies)).toThrow(/already started/i);
+    const nextTurn = advanceTurn(started, policies, () => 1);
+    expect(nextTurn.indicatorHistory).toHaveLength(2);
+    expect(nextTurn.indicatorHistory.at(-1)).toMatchObject({
+      turn: nextTurn.turn,
+      gdp: nextTurn.gdp,
+      inflation: nextTurn.inflation,
+      treasury: nextTurn.treasury,
+    });
   });
 
   it("advances one turn and applies policies and deterministic economic rules", () => {
@@ -466,6 +490,17 @@ describe("advanceTurn", () => {
     expect(subsidized.treasury).toBe(event.treasury - 100);
     expect(subsidized.wellbeing).toBeGreaterThan(passedThrough.wellbeing);
     expect(subsidized.inflation).toBeLessThan(passedThrough.inflation);
+    expect(subsidized.indicatorHistory).toHaveLength(event.indicatorHistory.length);
+    expect(subsidized.indicatorHistory.at(-1)).toMatchObject({
+      turn: event.turn,
+      treasury: subsidized.treasury,
+      inflation: subsidized.inflation,
+    });
+    expect(passedThrough.indicatorHistory.at(-1)).toMatchObject({
+      turn: event.turn,
+      treasury: passedThrough.treasury,
+      inflation: passedThrough.inflation,
+    });
     expect(() => resolveEventDecision(createInitialEconomy(), "subsidize")).toThrow(
       /no event is waiting/i,
     );

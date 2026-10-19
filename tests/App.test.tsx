@@ -4,6 +4,36 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
 import { createInitialEconomy } from "../src/economy.js";
 
+vi.mock("recharts", async () => {
+  const React = await import("react");
+  const passthrough = ({ children }: { children?: React.ReactNode }) => children ?? null;
+  return {
+    CartesianGrid: passthrough,
+    Line: passthrough,
+    LineChart: ({ children, data }: { children?: React.ReactNode; data?: unknown[] }) => React.createElement(
+      "svg",
+      { className: "recharts-surface", "data-points": data?.length },
+      React.createElement("path", { className: "recharts-line-curve" }),
+      children,
+    ),
+    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => React.createElement(
+      "div",
+      { className: "recharts-responsive-container" },
+      children,
+    ),
+    Tooltip: (props: {
+      labelFormatter?: (turn: number) => string;
+      formatter?: (value: number) => string;
+    }) => {
+      props.labelFormatter?.(1);
+      props.formatter?.(1);
+      return null;
+    },
+    XAxis: passthrough,
+    YAxis: passthrough,
+  };
+});
+
 const initialEconomy = createInitialEconomy();
 
 const policies = {
@@ -124,6 +154,9 @@ describe("Economy Simulator interface", () => {
     expect(screen.getByText(/Treasury adviser:/i)).toBeTruthy();
     expect(screen.getByText(/Political adviser:/i)).toBeTruthy();
     expect(screen.getByText("No milestones recorded yet.")).toBeTruthy();
+    expect(screen.getAllByRole("img", { name: /history through turn 1/i })).toHaveLength(12);
+    expect(screen.getByRole("img", { name: /Gross domestic product history through turn 1/i }))
+      .toBeTruthy();
   });
 
   it("updates policy inputs from user changes", async () => {
@@ -184,6 +217,57 @@ describe("Economy Simulator interface", () => {
     expect((await screen.findByRole("region", { name: /warnings/i })).textContent)
       .toContain("Low approval and high unrest");
     expect(screen.getByText(/GDP is close to collapse/i)).toBeTruthy();
+  });
+
+  it("formats invalid indicator values safely and renders a graph for each indicator", async () => {
+    const unusualEconomy = {
+      ...initialEconomy,
+      gdp: -1250,
+      inflation: Number.NaN,
+      started: true,
+    };
+    mockFetch(async () => jsonResponse(unusualEconomy));
+
+    const { container } = render(<App />);
+
+    expect(await screen.findByText("-$1,250")).toBeTruthy();
+    expect(screen.getByText("N/A")).toBeTruthy();
+    expect(container.querySelectorAll("svg.recharts-surface")).toHaveLength(12);
+  });
+
+  it("renders persisted multi-turn history with the latest value", async () => {
+    const firstSnapshot = {
+      turn: 1,
+      gdp: 1000,
+      inflation: 2,
+      unemployment: 5,
+      averageWage: 15,
+      treasury: 500,
+      debt: 0,
+      approval: 60,
+      population: 1_000_000,
+      wellbeing: 60,
+      productiveCapacity: 1600,
+      resourceReserves: 100,
+      unrest: 20,
+    };
+    const secondSnapshot = {
+      ...firstSnapshot,
+      turn: 2,
+      gdp: advancedEconomy.gdp,
+    };
+    mockFetch(async () => jsonResponse({
+      ...advancedEconomy,
+      indicatorHistory: [firstSnapshot, secondSnapshot],
+    }));
+
+    const { container } = render(<App />);
+
+    expect(await screen.findByText("$1,025")).toBeTruthy();
+    expect(screen.getByRole("img", {
+      name: "Gross domestic product history through turn 2",
+    })).toBeTruthy();
+    expect(container.querySelectorAll('svg[data-points="2"]')).toHaveLength(12);
   });
 
   it("lets the player resolve a pending energy event", async () => {
@@ -537,6 +621,8 @@ describe("Economy Simulator interface", () => {
 
     expect(screen.getByLabelText("Turn 8")).toBeTruthy();
     expect(screen.getByRole("status").textContent).toContain("Resilient economy");
+    expect(screen.getByRole("img", { name: /Gross domestic product history through turn 8/i }))
+      .toBeTruthy();
     expect(fetchMock.mock.calls.filter(([input]) =>
       String(input).endsWith("/api/economy/turn"),
     )).toHaveLength(7);
@@ -603,6 +689,7 @@ describe("Economy Simulator interface", () => {
       .toBe("200");
     expect((screen.getByRole("spinbutton", { name: /interest rate/i }) as HTMLInputElement).value)
       .toBe("3");
+    expect(screen.getAllByRole("img", { name: /history through turn 1/i })).toHaveLength(12);
     expect(fetchMock.mock.calls.some(([input]) =>
       String(input).endsWith("/api/economy/reset"),
     )).toBe(true);
