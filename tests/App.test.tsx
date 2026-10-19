@@ -157,6 +157,11 @@ describe("Economy Simulator interface", () => {
     expect(screen.getAllByRole("img", { name: /history through turn 1/i })).toHaveLength(12);
     expect(screen.getByRole("img", { name: /Gross domestic product history through turn 1/i }))
       .toBeTruthy();
+    const graphs = document.getElementById("indicators-title")!.closest("section")!;
+    const policy = document.getElementById("policy-title")!.closest("section")!;
+    const interests = document.getElementById("groups-title")!.closest("section")!;
+    expect(graphs.compareDocumentPosition(policy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(policy.compareDocumentPosition(interests) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("updates policy inputs from user changes", async () => {

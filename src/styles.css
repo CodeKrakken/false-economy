@@ -44,9 +44,9 @@ a:focus-visible {
 }
 
 .main-content {
-  width: min(1240px, calc(100% - 48px));
+  width: min(1320px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 46px 0 56px;
+  padding: 18px 0 32px;
 }
 
 .page-intro {
@@ -54,15 +54,15 @@ a:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 30px;
-  padding-bottom: 26px;
+  gap: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #000;
   animation: arrive 450ms ease-out both;
 }
 
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0 0 4px;
   color: var(--red-dark);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 10px;
@@ -83,24 +83,24 @@ h2 {
 
 h1 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 58px;
+  font-size: 46px;
   font-weight: 700;
   line-height: 0.98;
 }
 
 .page-dek {
-  margin-top: 10px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 22px;
+  font-size: 17px;
   font-style: italic;
   font-weight: 400;
 }
 
 .turn-marker {
   display: grid;
-  min-width: 122px;
+  min-width: 105px;
   justify-items: end;
-  padding: 2px 0 2px 18px;
+  padding: 2px 0 2px 12px;
   border-left: 2px solid var(--red);
   font-family: "SFMono-Regular", Consolas, monospace;
 }
@@ -115,7 +115,7 @@ h1 {
 
 .turn-marker-value {
   color: var(--red);
-  font-size: 43px;
+  font-size: 34px;
   font-weight: 700;
   line-height: 0.95;
 }
@@ -128,16 +128,9 @@ h1 {
   text-transform: uppercase;
 }
 
-.feature-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.8fr);
-  align-items: start;
-  gap: 34px;
-}
-
 .economy-section {
   min-width: 0;
-  padding-top: 17px;
+  padding-top: 0;
   animation: arrive 500ms 80ms ease-out both;
 }
 
@@ -146,7 +139,7 @@ h1 {
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .section-heading .eyebrow {
@@ -155,14 +148,14 @@ h1 {
 
 h2 {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 25px;
+  font-size: 21px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -172,13 +165,13 @@ h2 {
   position: relative;
   display: block;
   min-width: 0;
-  min-height: 105px;
-  padding: 12px 14px;
+  min-height: 88px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--line);
 }
 
 .metric:first-child {
-  padding-left: 18px;
+  padding-left: 10px;
 }
 
 .metric-primary {
@@ -186,7 +179,7 @@ h2 {
 }
 
 .metric dt {
-  margin-bottom: 7px;
+  margin-bottom: 4px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
@@ -201,7 +194,7 @@ h2 {
 
 .metric-chart {
   min-width: 0;
-  height: 64px;
+  height: 52px;
 }
 
 .metric-chart svg {
@@ -209,7 +202,7 @@ h2 {
 }
 
 .metric-value {
-  min-width: 88px;
+  min-width: 82px;
   text-align: right;
 }
 
@@ -221,7 +214,7 @@ h2 {
   display: block;
   color: var(--ink);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 20px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   line-height: 1;
@@ -231,7 +224,7 @@ h2 {
 .metric-primary .metric-current {
   color: var(--red-dark);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 26px;
+  font-size: 23px;
   font-weight: 700;
 }
 
@@ -252,17 +245,17 @@ h2 {
 
 .assessment {
   min-width: 0;
-  padding: 21px 20px 23px;
+  padding: 14px 16px;
   background: var(--wash);
   animation: arrive 450ms 120ms ease-out both;
 }
 
 .assessment .eyebrow {
-  margin-bottom: 9px;
+  margin-bottom: 5px;
 }
 
 .assessment h2 {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .assessment-result {
@@ -272,7 +265,7 @@ h2 {
   margin: 0;
   color: var(--ink);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -289,19 +282,19 @@ h2 {
 }
 
 .assessment-thresholds {
-  margin: 22px 0 0;
-  padding-top: 15px;
+  margin: 10px 0 0;
+  padding-top: 9px;
   color: #45433f;
   border-top: 1px solid #c9c2b7;
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .warning-panel,
 .event-panel,
 .final-report {
-  margin-top: 22px;
-  padding: 20px 22px;
+  margin-top: 12px;
+  padding: 14px 16px;
   background: #f7e4e0;
   border-top: 2px solid var(--red);
 }
@@ -326,14 +319,14 @@ h2 {
 
 .groups-section,
 .achievements-section {
-  margin-top: 30px;
-  padding-top: 17px;
+  margin-top: 0;
+  padding-top: 10px;
   border-top: 1px solid var(--ink);
 }
 
 .groups-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   margin: 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -345,12 +338,12 @@ h2 {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 15px;
-  border-right: 1px solid var(--line);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
 }
 
 .groups-grid > div:last-child {
-  border-right: 0;
+  border-bottom: 0;
 }
 
 .groups-grid dt,
@@ -365,7 +358,7 @@ h2 {
   margin: 0;
   color: var(--red-dark);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -373,9 +366,9 @@ h2 {
 .news-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
-  gap: 26px;
-  margin-top: 24px;
-  padding: 20px 0 22px;
+  gap: 16px;
+  margin-top: 0;
+  padding: 14px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -387,7 +380,7 @@ h2 {
 .news-panel h2 {
   max-width: 680px;
   color: var(--red-dark);
-  font-size: 28px;
+  font-size: 22px;
 }
 
 .adviser-grid {
@@ -413,6 +406,7 @@ h2 {
 }
 
 .event-panel {
+  margin-top: 12px;
   background: var(--paper);
 }
 
@@ -502,15 +496,16 @@ h2 {
 }
 
 .policy-section {
-  margin-top: 34px;
-  padding: 24px 0 27px;
+  min-width: 0;
+  margin-top: 0;
+  padding: 10px 0 12px;
   border-top: 1px solid #000;
   border-bottom: 1px solid var(--ink);
   animation-delay: 140ms;
 }
 
 .policy-heading {
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .policy-actions {
@@ -522,12 +517,12 @@ h2 {
 .policy-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
+  gap: 8px 16px;
 }
 
 .policy-control label {
   display: block;
-  margin-bottom: 9px;
+  margin-bottom: 4px;
   color: var(--ink);
   font-size: 12px;
   font-weight: 700;
@@ -555,14 +550,14 @@ h2 {
 .input-row input {
   width: 100%;
   min-width: 0;
-  height: 44px;
+  height: 34px;
   padding: 0 10px 0 0;
   color: var(--ink);
   background: var(--paper);
   border: 0;
   border-radius: 0;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -586,10 +581,10 @@ h2 {
 
 .policy-note {
   grid-column: 1 / -1;
-  padding: 5px 0 10px;
+  padding: 3px 0 4px;
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .button {
@@ -682,13 +677,17 @@ h2 {
 
 @media (max-width: 850px) {
   .main-content {
-    width: min(calc(100% - 36px), 680px);
-    padding-top: 38px;
+    width: calc(100% - 36px);
+    padding-top: 22px;
   }
 
-  .feature-grid {
+  .metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .decision-grid {
     grid-template-columns: 1fr;
-    gap: 22px;
+    gap: 10px;
   }
 
   .news-panel {
@@ -707,19 +706,19 @@ h2 {
   .page-intro {
     align-items: flex-start;
     gap: 13px;
-    margin-bottom: 24px;
-    padding-bottom: 19px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
   }
 
   h1 {
     max-width: 260px;
-    font-size: 42px;
+    font-size: 38px;
   }
 
   .page-dek {
     max-width: 245px;
     margin-top: 8px;
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .turn-marker {
@@ -732,7 +731,7 @@ h2 {
   }
 
   .turn-marker-value {
-    font-size: 32px;
+    font-size: 28px;
   }
 
   .turn-marker-note {
@@ -744,7 +743,7 @@ h2 {
   }
 
   .section-heading h2 {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .metrics-grid {
@@ -804,13 +803,52 @@ h2 {
   }
 
   .policy-section {
-    margin-top: 27px;
-    padding: 20px 0 24px;
+    padding: 10px 0 12px;
   }
 
   .policy-grid {
     grid-template-columns: 1fr;
-    gap: 19px;
+    gap: 8px;
+  }
+}
+
+.decision-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  align-items: start;
+  gap: 20px;
+  margin-top: 14px;
+}
+
+.secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px 20px;
+  margin-top: 20px;
+}
+
+.secondary-grid .warning-panel,
+.secondary-grid .assessment,
+.secondary-grid .news-panel {
+  margin: 0;
+}
+
+.secondary-grid .news-panel {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 850px) {
+  .decision-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .secondary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .secondary-grid .news-panel {
+    grid-column: auto;
   }
 }
 

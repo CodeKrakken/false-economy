@@ -387,23 +387,10 @@ function App() {
 
         {error && <p className="error-message" role="alert">{error}</p>}
 
-        {warnings.length > 0 && (
-          <section className="warning-panel" aria-label="Warnings">
-            <p className="eyebrow">SIGNALS UNDER PRESSURE</p>
-            <ul>
-              {warnings.map((warning) => <li key={warning}>{warning}</li>)}
-            </ul>
-          </section>
-        )}
-
-        <div className="feature-grid">
-          <section className="economy-section" aria-labelledby="indicators-title">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">NATIONAL INDICATORS / LIVE READOUT</p>
-                <h2 id="indicators-title">Current state</h2>
-              </div>
-            </div>
+        <section className="economy-section" aria-labelledby="indicators-title">
+          <div className="section-heading">
+            <h2 id="indicators-title">Economic indicators</h2>
+          </div>
 
             <dl className="metrics-grid">
               {INDICATORS.map((indicator) => {
@@ -464,16 +451,151 @@ function App() {
                 );
               })}
             </dl>
+        </section>
+
+        {economy.pendingEvent && (
+          <section className="event-panel" aria-labelledby="event-title">
+            <p className="eyebrow">CABINET DECISION / TURN {economy.turn}</p>
+            <h2 id="event-title">{economy.pendingEvent.title}</h2>
+            <p>{economy.pendingEvent.description}</p>
+            <div className="event-actions">
+              <button className="button button-secondary" type="button"
+                onClick={() => void answerEvent("subsidize")} disabled={isBusy}>
+                Subsidize household bills
+              </button>
+              <button className="button button-secondary" type="button"
+                onClick={() => void answerEvent("passThrough")} disabled={isBusy}>
+                Pass costs through
+              </button>
+            </div>
+          </section>
+        )}
+
+        <div className="decision-grid">
+          <section className="policy-section" aria-labelledby="policy-title">
+            <div className="section-heading policy-heading">
+              <div>
+                <p className="eyebrow">
+                  {economy.started ? "POLICY DESK / LIVE LEVERS" : "POLICY DESK / SET BEFORE START"}
+                </p>
+                <h2 id="policy-title">Policy settings</h2>
+              </div>
+              <div className="policy-actions">
+                {!economy.started && (
+                  <button className="button button-primary" type="button"
+                    onClick={() => void startGame()} disabled={isBusy}>
+                    {activeRequest === "start" ? "Starting..." : "Start game"}
+                  </button>
+                )}
+                <button className="button button-secondary reset-button" type="button"
+                  onClick={() => void resetGame()} disabled={isBusy}>
+                  {activeRequest === "reset" ? "Resetting..." : "Reset game"}
+                </button>
+              </div>
+            </div>
+            <div className="policy-grid">
+              <div className="policy-control">
+                <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
+                <div className="input-row">
+                  <input id="tax-rate" type="number" min={0} max={60} step="any"
+                    value={policies.taxRate}
+                    onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">0—60%</span>
+                  <span className="policy-note">Revenue for the state; less disposable income.</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="public-spending">Public spending <span>($)</span></label>
+                <div className="input-row">
+                  <input id="public-spending" type="number" min={0} max={500} step="any"
+                    value={policies.publicSpending}
+                    onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">$0—$500</span>
+                  <span className="policy-note">Immediate cost; large investment can raise future output.</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="interest-rate">Interest rate <span>(%)</span></label>
+                <div className="input-row">
+                  <input id="interest-rate" type="number" min={0} max={20} step="any"
+                    value={policies.interestRate}
+                    onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">0—20%</span>
+                  <span className="policy-note">Can cool prices while weighing on borrowing and growth.</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="minimum-wage">Minimum wage <span>($ / hour)</span></label>
+                <div className="input-row">
+                  <input id="minimum-wage" type="number" min={0} max={30} step="any"
+                    value={policies.minimumWage}
+                    onChange={(event) => updatePolicy("minimumWage", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">$0—$30</span>
+                  <span className="policy-note">Supports wages; may raise hiring costs and prices.</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="tariff-rate">Tariff rate <span>(%)</span></label>
+                <div className="input-row">
+                  <input id="tariff-rate" type="number" min={0} max={40} step="any"
+                    value={policies.tariffRate}
+                    onChange={(event) => updatePolicy("tariffRate", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">0—40%</span>
+                  <span className="policy-note">Shelters some producers; raises import costs.</span>
+                </div>
+              </div>
+              <div className="policy-control">
+                <label htmlFor="energy-subsidy">Energy subsidy <span>($)</span></label>
+                <div className="input-row">
+                  <input id="energy-subsidy" type="number" min={0} max={300} step="any"
+                    value={policies.energySubsidy}
+                    onChange={(event) => updatePolicy("energySubsidy", event.currentTarget.value)}
+                    onKeyDown={handlePolicyKeyDown}
+                    disabled={activeRequest === "reset" || activeRequest === "start"} />
+                  <span className="input-range">$0—$300</span>
+                  <span className="policy-note">Reduces household costs; draws on the treasury.</span>
+                </div>
+              </div>
+            </div>
           </section>
 
+          <section className="groups-section" aria-labelledby="groups-title">
+            <div className="section-heading">
+              <h2 id="groups-title">Competing interests</h2>
+            </div>
+            <dl className="groups-grid">
+              <div><dt>Workers</dt><dd>{formatPercent(economy.groups.workers)}</dd></div>
+              <div><dt>Businesses</dt><dd>{formatPercent(economy.groups.businesses)}</dd></div>
+              <div><dt>Public sector</dt><dd>{formatPercent(economy.groups.publicSector)}</dd></div>
+            </dl>
+          </section>
+        </div>
+
+        <div className="secondary-grid">
+          {warnings.length > 0 && (
+            <section className="warning-panel" aria-label="Warnings">
+              <p className="eyebrow">SIGNALS UNDER PRESSURE</p>
+              <ul>
+                {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+            </section>
+          )}
           <section className="assessment" aria-labelledby="assessment-title">
             <div className="assessment-heading">
               <p className="eyebrow">LIVE ASSESSMENT</p>
               <h2 id="assessment-title">Current outlook</h2>
-              <p
-                className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}
-                role="status"
-              >
+              <p className={`assessment-result ${isResilient ? "is-resilient" : "is-strained"}`}
+                role="status">
                 <span className="assessment-status-mark" aria-hidden="true" />
                 {isResilient ? "Resilient economy" : "Economy under pressure"}
               </p>
@@ -483,58 +605,17 @@ function App() {
               $1,000, and treasury is at least $0.
             </p>
           </section>
-        </div>
-
-        <section className="groups-section" aria-labelledby="groups-title">
-          <div className="section-heading">
+          <section className="news-panel" aria-labelledby="headline-title">
             <div>
-              <p className="eyebrow">COMPETING INTERESTS</p>
-              <h2 id="groups-title">Who supports the programme?</h2>
+              <p className="eyebrow">THE DAILY BRIEF / TURN {economy.turn}</p>
+              <h2 id="headline-title">{economy.headline}</h2>
             </div>
-          </div>
-          <dl className="groups-grid">
-            <div><dt>Workers</dt><dd>{formatPercent(economy.groups.workers)}</dd></div>
-            <div><dt>Businesses</dt><dd>{formatPercent(economy.groups.businesses)}</dd></div>
-            <div><dt>Public sector</dt><dd>{formatPercent(economy.groups.publicSector)}</dd></div>
-          </dl>
-        </section>
-
-        <section className="news-panel" aria-labelledby="headline-title">
-          <div>
-            <p className="eyebrow">THE DAILY BRIEF / TURN {economy.turn}</p>
-            <h2 id="headline-title">{economy.headline}</h2>
-          </div>
-          <div className="adviser-grid" aria-label="Cabinet advisers">
-            <p><strong>Treasury adviser:</strong>{advice.treasury.replace("Treasury adviser: ", "")}</p>
-            <p><strong>Political adviser:</strong>{advice.political.replace("Political adviser: ", "")}</p>
-          </div>
-        </section>
-
-        {economy.pendingEvent && (
-          <section className="event-panel" aria-labelledby="event-title">
-            <p className="eyebrow">CABINET DECISION / TURN {economy.turn}</p>
-            <h2 id="event-title">{economy.pendingEvent.title}</h2>
-            <p>{economy.pendingEvent.description}</p>
-            <div className="event-actions">
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => void answerEvent("subsidize")}
-                disabled={isBusy}
-              >
-                Subsidize household bills
-              </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() => void answerEvent("passThrough")}
-                disabled={isBusy}
-              >
-                Pass costs through
-              </button>
+            <div className="adviser-grid" aria-label="Cabinet advisers">
+              <p><strong>Treasury adviser:</strong>{advice.treasury.replace("Treasury adviser: ", "")}</p>
+              <p><strong>Political adviser:</strong>{advice.political.replace("Political adviser: ", "")}</p>
             </div>
           </section>
-        )}
+        </div>
 
         <section className="achievements-section" aria-labelledby="achievements-title">
           <div className="section-heading">
@@ -577,124 +658,6 @@ function App() {
             </ul>
           </section>
         )}
-
-        <section className="policy-section" aria-labelledby="policy-title">
-          <div className="section-heading policy-heading">
-            <div>
-              <p className="eyebrow">
-                {economy.started ? "POLICY DESK / LIVE LEVERS" : "POLICY DESK / SET BEFORE START"}
-              </p>
-              <h2 id="policy-title">Policy settings</h2>
-            </div>
-            <div className="policy-actions">
-              {!economy.started && (
-                <button
-                  className="button button-primary"
-                  type="button"
-                  onClick={() => void startGame()}
-                  disabled={isBusy}
-                >
-                  {activeRequest === "start" ? "Starting..." : "Start game"}
-                </button>
-              )}
-              <button
-                className="button button-secondary reset-button"
-                type="button"
-                onClick={() => void resetGame()}
-                disabled={isBusy}
-              >
-                {activeRequest === "reset" ? "Resetting..." : "Reset game"}
-              </button>
-            </div>
-          </div>
-
-          <div className="policy-grid">
-              <div className="policy-control">
-                <label htmlFor="tax-rate">Tax rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input
-                    id="tax-rate"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step="any"
-                    value={policies.taxRate}
-                    onChange={(event) => updatePolicy("taxRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"}
-                  />
-                  <span className="input-range">0—60%</span>
-                  <span className="policy-note">Revenue for the state; less disposable income.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="public-spending">Public spending <span>($)</span></label>
-                <div className="input-row">
-                  <input
-                    id="public-spending"
-                    type="number"
-                    min={0}
-                    max={500}
-                    step="any"
-                    value={policies.publicSpending}
-                    onChange={(event) => updatePolicy("publicSpending", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"}
-                  />
-                  <span className="input-range">$0—$500</span>
-                  <span className="policy-note">Immediate cost; large investment can raise future output.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="interest-rate">Interest rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input
-                    id="interest-rate"
-                    type="number"
-                    min={0}
-                    max={20}
-                    step="any"
-                    value={policies.interestRate}
-                    onChange={(event) => updatePolicy("interestRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown}
-                    disabled={activeRequest === "reset" || activeRequest === "start"}
-                  />
-                  <span className="input-range">0—20%</span>
-                  <span className="policy-note">Can cool prices while weighing on borrowing and growth.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="minimum-wage">Minimum wage <span>($ / hour)</span></label>
-                <div className="input-row">
-                  <input id="minimum-wage" type="number" min={0} max={30} step="any" value={policies.minimumWage}
-                    onChange={(event) => updatePolicy("minimumWage", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">$0—$30</span>
-                  <span className="policy-note">Supports wages; may raise hiring costs and prices.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="tariff-rate">Tariff rate <span>(%)</span></label>
-                <div className="input-row">
-                  <input id="tariff-rate" type="number" min={0} max={40} step="any" value={policies.tariffRate}
-                    onChange={(event) => updatePolicy("tariffRate", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">0—40%</span>
-                  <span className="policy-note">Shelters some producers; raises import costs.</span>
-                </div>
-              </div>
-              <div className="policy-control">
-                <label htmlFor="energy-subsidy">Energy subsidy <span>($)</span></label>
-                <div className="input-row">
-                  <input id="energy-subsidy" type="number" min={0} max={300} step="any" value={policies.energySubsidy}
-                    onChange={(event) => updatePolicy("energySubsidy", event.currentTarget.value)}
-                    onKeyDown={handlePolicyKeyDown} disabled={activeRequest === "reset" || activeRequest === "start"} />
-                  <span className="input-range">$0—$300</span>
-                  <span className="policy-note">Reduces household costs; draws on the treasury.</span>
-                </div>
-              </div>
-          </div>
-        </section>
 
       </main>
     </div>
