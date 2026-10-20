@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import PolicySettings from "../src/PolicySettings";
-import type { PolicyInputs } from "../src/PolicySettings";
+import PolicySettings from "../../frontend/src/PolicySettings";
+import type { PolicyInputs } from "../../frontend/src/PolicySettings";
 
 const policies: PolicyInputs = {
   taxRate: "25",

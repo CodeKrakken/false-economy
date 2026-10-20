@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Economy, IndicatorSnapshot } from "./economy.js";
+import type { Economy, IndicatorSnapshot } from "../../backend/src/economy.js";
 import { formatIndicator, formatPercent } from "./indicators";
 import type { Indicator } from "./indicators";
 

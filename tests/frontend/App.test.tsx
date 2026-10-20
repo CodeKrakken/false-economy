@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import App from "../src/App";
-import { createInitialEconomy } from "../src/economy.js";
+import App from "../../frontend/src/App";
+import { createInitialEconomy } from "../../backend/src/economy.js";
 
 vi.mock("recharts", async () => {
   const React = await import("react");

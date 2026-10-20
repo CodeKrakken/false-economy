@@ -7,7 +7,7 @@ import {
   type Economy,
   type EventChoice,
   type IndicatorSnapshot,
-} from "./economy.js";
+} from "../../backend/src/economy.js";
 import CompetingInterests from "./CompetingInterests";
 import EconomicIndicators from "./EconomicIndicators";
 import PolicySettings from "./PolicySettings";

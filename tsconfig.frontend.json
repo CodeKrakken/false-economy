@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src/App.tsx", "src/main.tsx", "src/economy.ts"]
+  "include": ["frontend/src/**/*"]
 }

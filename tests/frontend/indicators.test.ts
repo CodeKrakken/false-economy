@@ -6,7 +6,7 @@ import {
   formatPopulation,
   formatWage,
   INDICATORS,
-} from "../src/indicators";
+} from "../../frontend/src/indicators";
 
 describe("indicator formatting and metadata", () => {
   it("formats every indicator value and safely handles non-finite values", () => {

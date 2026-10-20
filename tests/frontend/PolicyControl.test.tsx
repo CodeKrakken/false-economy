@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import PolicyControl from "../src/PolicyControl";
+import PolicyControl from "../../frontend/src/PolicyControl";
 
 describe("PolicyControl", () => {
   it("renders the policy input details and reports changed values", () => {

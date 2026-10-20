@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import CompetingInterests from "../src/CompetingInterests";
+import CompetingInterests from "../../frontend/src/CompetingInterests";
 
 describe("CompetingInterests", () => {
   it("renders the formatted approval values for each group", () => {

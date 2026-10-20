@@ -1,4 +1,4 @@
-import type { IndicatorSnapshot } from "./economy.js";
+import type { IndicatorSnapshot } from "../../backend/src/economy.js";
 
 export type IndicatorKey = Exclude<keyof IndicatorSnapshot, "turn">;
 export type IndicatorFormat = "money" | "percent" | "wage" | "population";

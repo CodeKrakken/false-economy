@@ -109,13 +109,13 @@ Achievements are state-earned and recorded once: non-deficit turn cash flow, inf
 
 ## Architecture
 
-- `src/economy.ts` defines typed state, policy validation, effects, events, reporting, achievements, and pure turn transitions.
-- `src/app.ts` provides the in-memory Express API and injectable random source.
-- `src/App.tsx` renders indicators (including productive capacity and resource reserves), controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
-- `src/styles.css` provides the responsive editorial interface.
+- `backend/src/economy.ts` defines typed state, policy validation, effects, events, reporting, achievements, and pure turn transitions.
+- `backend/src/app.ts` provides the in-memory Express API and injectable random source; `backend/src/server.ts` starts it.
+- `frontend/src/App.tsx` renders indicators (including productive capacity and resource reserves), controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
+- `frontend/src/styles.css` provides the responsive editorial interface.
 
 ## Testing And Accessibility
 
-Economy tests exercise deterministic policy, event, delayed-effect, outcome, and achievement cases. Supertest covers the API contract and decision validation. React Testing Library and user-event cover the timed loop, policy editing, event choices, warnings, and reports. `npm run test:coverage` is expected to report 100% statements, branches, functions, and lines.
+Backend tests under `tests/backend/` exercise deterministic policy, event, delayed-effect, outcome, and achievement cases, and use Supertest to cover the API contract and decision validation. Frontend tests under `tests/frontend/` use React Testing Library and user-event to cover the timed loop, policy editing, event choices, warnings, and reports. `npm run test:coverage` is expected to report 100% statements, branches, functions, and lines.
 
 The interface uses semantic sections and headings, labeled numeric controls with published ranges, keyboard-visible focus, status/alert regions, and responsive layouts. An open event pauses the timer until the player decides; a completed game stops normal progression.

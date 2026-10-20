@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../../backend/src/app.js";
 
 const app = createApp(() => 1);
 

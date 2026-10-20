@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "dev:server": "tsx watch src/server.ts",
+    "dev:server": "tsx watch backend/src/server.ts",
     "build": "tsc && tsc -p tsconfig.frontend.json && vite build",
     "start": "node dist/server.js",
     "test": "vitest run",

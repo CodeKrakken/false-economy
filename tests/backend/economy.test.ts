@@ -6,8 +6,8 @@ import {
   getEconomicWarnings,
   resolveEventDecision,
   startGame,
-} from "../src/economy.js";
-import type { Economy } from "../src/economy.js";
+} from "../../backend/src/economy.js";
+import type { Economy } from "../../backend/src/economy.js";
 
 describe("createInitialEconomy", () => {
   it("returns the initial economy values", () => {

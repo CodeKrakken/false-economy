@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import type { Economy } from "./economy.js";
+import type { Economy } from "../../backend/src/economy.js";
 import PolicyControl from "./PolicyControl";
 
 export type Policies = Pick<

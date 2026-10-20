@@ -1,4 +1,4 @@
-import type { Economy, IndicatorSnapshot } from "./economy.js";
+import type { Economy, IndicatorSnapshot } from "../../backend/src/economy.js";
 import { INDICATORS } from "./indicators";
 import IndicatorCard from "./IndicatorCard";
 

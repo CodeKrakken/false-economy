@@ -12,7 +12,7 @@ const policies = {
 };
 
 afterEach(() => {
-  vi.doUnmock("../src/economy.js");
+  vi.doUnmock("../../backend/src/economy.js");
   vi.resetModules();
 });
 
@@ -24,7 +24,7 @@ describe("server bootstrap", () => {
     mkdirSync(clientDirectory, { recursive: true });
     writeFileSync(indexFile, "<!doctype html><title>Economy</title>");
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
-    vi.doMock("../src/economy.js", () => ({
+    vi.doMock("../../backend/src/economy.js", () => ({
       createInitialEconomy: () => ({
         turn: 1,
         started: true,
@@ -49,7 +49,7 @@ describe("server bootstrap", () => {
 
     try {
       vi.resetModules();
-      const { default: app }: { default: Express } = await import("../src/app.js");
+      const { default: app }: { default: Express } = await import("../../backend/src/app.js");
       cwd.mockRestore();
 
       const home = await request(app).get("/");
@@ -82,12 +82,12 @@ describe("server bootstrap", () => {
         .send({ choice: "subsidize" });
       expect(unexpectedEventError.status).toBe(500);
 
-      vi.doUnmock("../src/economy.js");
+      vi.doUnmock("../../backend/src/economy.js");
       const noClientRoot = mkdtempSync(join(tmpdir(), "false-economy-no-client-"));
       const noClientCwd = vi.spyOn(process, "cwd").mockReturnValue(noClientRoot);
       try {
         vi.resetModules();
-        const { default: serverOnlyApp }: { default: Express } = await import("../src/app.js");
+        const { default: serverOnlyApp }: { default: Express } = await import("../../backend/src/app.js");
         noClientCwd.mockRestore();
         const notFound = await request(serverOnlyApp).get("/api/unsupported");
         expect(notFound.status).toBe(404);

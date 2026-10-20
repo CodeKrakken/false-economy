@@ -1,4 +1,4 @@
-import type { InterestGroups } from "./economy.js";
+import type { InterestGroups } from "../../backend/src/economy.js";
 import { formatPercent } from "./indicators";
 
 type CompetingInterestsProps = {
