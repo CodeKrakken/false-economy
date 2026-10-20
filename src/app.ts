@@ -13,21 +13,37 @@ import {
 const REQUIRED_POLICY_FIELDS = ["taxRate", "publicSpending", "interestRate"] as const;
 const OPTIONAL_POLICY_FIELDS = ["minimumWage", "tariffRate", "energySubsidy"] as const;
 
-function parsePolicyInput(body: unknown): { policyInput: PolicyInput } | { error: string } {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+function parsePolicyInput(body: unknown): { 
+  policyInput: PolicyInput } | { error: string 
+} {
+
+  if (
+    typeof body !== "object" || 
+    body === null || 
+    Array.isArray(body)
+  ) {
     return { error: "Request body must be an object containing all three policy fields." };
   }
 
   const values = body as Record<string, unknown>;
+
   for (const field of REQUIRED_POLICY_FIELDS) {
-    if (typeof values[field] !== "number" || !Number.isFinite(values[field])) {
+
+    if (
+      typeof values[field] !== "number" || 
+      !Number.isFinite(values[field])
+    ) {
       return { error: `${field} must be a finite number.` };
     }
   }
+
   for (const field of OPTIONAL_POLICY_FIELDS) {
     if (
       field in values &&
-      (typeof values[field] !== "number" || !Number.isFinite(values[field]))
+      (
+        typeof values[field] !== "number" || 
+        !Number.isFinite(values[field])
+      )
     ) {
       return { error: `${field} must be a finite number.` };
     }
@@ -35,17 +51,20 @@ function parsePolicyInput(body: unknown): { policyInput: PolicyInput } | { error
 
   return {
     policyInput: {
-      taxRate: values.taxRate as number,
-      publicSpending: values.publicSpending as number,
-      interestRate: values.interestRate as number,
-      ...(typeof values.minimumWage === "number" ? { minimumWage: values.minimumWage } : {}),
-      ...(typeof values.tariffRate === "number" ? { tariffRate: values.tariffRate } : {}),
-      ...(typeof values.energySubsidy === "number" ? { energySubsidy: values.energySubsidy } : {}),
+      taxRate         : values.taxRate as number,
+      publicSpending  : values.publicSpending as number,
+      interestRate    : values.interestRate as number,
+      ...(typeof values.minimumWage   === "number" ? { minimumWage    : values.minimumWage    } : {}),
+      ...(typeof values.tariffRate    === "number" ? { tariffRate     : values.tariffRate     } : {}),
+      ...(typeof values.energySubsidy === "number" ? { energySubsidy  : values.energySubsidy  } : {}),
     },
   };
 }
 
-export function createApp(random: () => number = Math.random) {
+export function createApp(
+  random: () => number = Math.random
+) {
+
   const app = express();
   let currentEconomy = createInitialEconomy();
 
@@ -61,16 +80,21 @@ export function createApp(random: () => number = Math.random) {
   });
 
   app.post("/api/economy/start", (request, response, next) => {
+
     const parsed = parsePolicyInput(request.body);
+
     if ("error" in parsed) {
       response.status(400).json({ error: parsed.error });
       return;
     }
 
     try {
+
       currentEconomy = startGame(currentEconomy, parsed.policyInput);
       response.json(currentEconomy);
+
     } catch (error) {
+
       if (error instanceof RangeError) {
         response.status(400).json({ error: error.message });
         return;
@@ -81,11 +105,14 @@ export function createApp(random: () => number = Math.random) {
   });
 
   app.post("/api/economy/turn", (request, response, next) => {
+
     const parsed = parsePolicyInput(request.body);
+
     if ("error" in parsed) {
       response.status(400).json({ error: parsed.error });
       return;
     }
+
     if (!currentEconomy.started) {
       response.status(409).json({ error: "Start the game before advancing a turn." });
       return;
@@ -94,7 +121,9 @@ export function createApp(random: () => number = Math.random) {
     try {
       currentEconomy = advanceTurn(currentEconomy, parsed.policyInput, random);
       response.json(currentEconomy);
+
     } catch (error) {
+
       if (error instanceof RangeError) {
         response.status(400).json({ error: error.message });
         return;
@@ -105,7 +134,9 @@ export function createApp(random: () => number = Math.random) {
   });
 
   app.post("/api/economy/event", (request, response, next) => {
+
     const body: unknown = request.body;
+
     if (
       typeof body !== "object" ||
       body === null ||
@@ -120,7 +151,9 @@ export function createApp(random: () => number = Math.random) {
     try {
       currentEconomy = resolveEventDecision(currentEconomy, body.choice as EventChoice);
       response.json(currentEconomy);
+
     } catch (error) {
+
       if (error instanceof RangeError) {
         response.status(400).json({ error: error.message });
         return;
@@ -131,9 +164,12 @@ export function createApp(random: () => number = Math.random) {
   });
 
   const clientDirectory = resolve(process.cwd(), "dist/client");
+
   if (existsSync(clientDirectory)) {
     app.use(express.static(clientDirectory));
+
     app.use((request, response, next) => {
+
       if (request.path === "/api" || request.path.startsWith("/api/")) {
         next();
         return;
@@ -150,6 +186,7 @@ export function createApp(random: () => number = Math.random) {
   });
 
   const jsonErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
+    
     if (
       typeof error === "object" &&
       error !== null &&
