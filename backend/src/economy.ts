@@ -1,14 +1,14 @@
-export type Policies = {
-  taxRate: number;
-  publicSpending: number;
-  interestRate: number;
-  minimumWage: number;
-  tariffRate: number;
-  energySubsidy: number;
+type Settings = {
+  taxRate         : number;
+  publicSpending  : number;
+  interestRate    : number;
+  minimumWage     : number;
+  tariffRate      : number;
+  energySubsidy   : number;
 };
 
-export type PolicyInput = Pick<Policies, "taxRate" | "publicSpending" | "interestRate"> &
-  Partial<Pick<Policies, "minimumWage" | "tariffRate" | "energySubsidy">>;
+export type PolicyInput = Pick<Settings, "taxRate" | "publicSpending" | "interestRate"> &
+  Partial<Pick<Settings, "minimumWage" | "tariffRate" | "energySubsidy">>;
 
 export type InterestGroups = {
   workers: number;
@@ -16,13 +16,13 @@ export type InterestGroups = {
   publicSector: number;
 };
 
-export type ScheduledEffect = {
+type ScheduledEffect = {
   kind: "capacity";
   dueTurn: number;
   amount: number;
 };
 
-export type EventType =
+type EventType =
   | "energyShock"
   | "recession"
   | "publicStrike"
@@ -30,7 +30,7 @@ export type EventType =
   | "tradeDisruption"
   | "borrowingShock";
 
-export type GameEvent = {
+type GameEvent = {
   type: EventType;
   title: string;
   description: string;
@@ -39,7 +39,7 @@ export type GameEvent = {
 
 export type EventChoice = "subsidise" | "passThrough";
 
-export type HistoryEntry = {
+type HistoryEntry = {
   turn: number;
   type: "policy" | "event" | "milestone";
   text: string;
@@ -69,7 +69,7 @@ export type AchievementId =
   | "weatheredRecession"
   | "resilientInvestment";
 
-export type EconomyRules = {
+type EconomyRules = {
   overthrowApproval: number;
   overthrowUnrest: number;
   overthrowGraceTurns: number;
@@ -79,14 +79,14 @@ export type EconomyRules = {
   collapseGraceTurns: number;
 };
 
-export type GameStart = {
+type GameStart = {
   gdp: number;
   inflation: number;
   treasury: number;
   population: number;
 };
 
-export type FinalReport = {
+type FinalReport = {
   reason: string;
   gdpChange: number;
   inflationChange: number;
@@ -97,14 +97,14 @@ export type FinalReport = {
   history: HistoryEntry[];
 };
 
-export type GameOutcome = {
+type GameOutcome = {
   kind: "defeat";
   reason: string;
   endedTurn: number;
   report: FinalReport;
 };
 
-export type AdviserAdvice = {
+type AdviserAdvice = {
   treasury: string;
   political: string;
 };
@@ -156,7 +156,7 @@ const DEFAULT_RULES: EconomyRules = {
   collapseGraceTurns: 3,
 };
 
-const POLICY_LIMITS: Record<keyof Policies, [number, number]> = {
+const POLICY_LIMITS: Record<keyof Settings, [number, number]> = {
   taxRate: [0, 60],
   publicSpending: [0, 500],
   interestRate: [0, 20],
@@ -190,7 +190,7 @@ function oneDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function policiesFor(economy: Economy, input: PolicyInput): Policies {
+function policiesFor(economy: Economy, input: PolicyInput): Settings {
   return {
     taxRate: input.taxRate,
     publicSpending: input.publicSpending,
@@ -201,8 +201,8 @@ function policiesFor(economy: Economy, input: PolicyInput): Policies {
   };
 }
 
-function validatePolicies(policies: Policies): void {
-  for (const field of Object.keys(POLICY_LIMITS) as (keyof Policies)[]) {
+function validateSettings(policies: Settings): void {
+  for (const field of Object.keys(POLICY_LIMITS) as (keyof Settings)[]) {
     const [minimum, maximum] = POLICY_LIMITS[field];
     const value = policies[field];
     if (!Number.isFinite(value) || value < minimum || value > maximum) {
@@ -213,7 +213,7 @@ function validatePolicies(policies: Policies): void {
 
 function groupsFor(
   economy: Economy,
-  policies: Policies,
+  policies: Settings,
   inflation: number,
   unemployment: number,
   averageWage: number,
@@ -268,7 +268,7 @@ export function startGame(economy: Economy, input: PolicyInput): Economy {
     throw new RangeError("The game has already started.");
   }
   const policies = policiesFor(economy, input);
-  validatePolicies(policies);
+  validateSettings(policies);
   const averageWage = Math.max(economy.averageWage, policies.minimumWage);
   const groups = groupsFor(
     economy,
@@ -314,8 +314,8 @@ function recordIndicatorSnapshot(economy: Economy): Economy {
   };
 }
 
-function policyHistory(economy: Economy, policies: Policies, turn: number): HistoryEntry[] {
-  const labels: Record<keyof Policies, string> = {
+function policyHistory(economy: Economy, policies: Settings, turn: number): HistoryEntry[] {
+  const labels: Record<keyof Settings, string> = {
     taxRate: "taxes",
     publicSpending: "public spending",
     interestRate: "interest rates",
@@ -323,7 +323,7 @@ function policyHistory(economy: Economy, policies: Policies, turn: number): Hist
     tariffRate: "tariffs",
     energySubsidy: "energy subsidies",
   };
-  const changed = (Object.keys(labels) as (keyof Policies)[])
+  const changed = (Object.keys(labels) as (keyof Settings)[])
     .filter((field) => economy[field] !== policies[field])
     .map((field) => `${labels[field]} ${economy[field]} to ${policies[field]}`);
 
@@ -533,7 +533,7 @@ export function advanceTurn(
 ): Economy {
   if (!economy.started || economy.outcome || economy.pendingEvent) return economy;
   const policies = policiesFor(economy, input);
-  validatePolicies(policies);
+  validateSettings(policies);
 
   const nextTurn = economy.turn + 1;
   const wageGrowthRate = bounded(
