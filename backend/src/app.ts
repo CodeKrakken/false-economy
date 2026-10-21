@@ -6,11 +6,12 @@ import {
   createInitialEconomy,
   resolveEventDecision,
   startGame,
-  type EventChoice,
-  type PolicyInput,
 } from "./economy.js";
 
-import { type EventChoice } from '../shared.types.js'
+import { 
+  type EventChoice,
+  type PolicyInput,
+} from '../shared.types.js'
 
 const REQUIRED_POLICY_FIELDS = ["taxRate", "publicSpending", "interestRate"] as const;
 const OPTIONAL_POLICY_FIELDS = ["minimumWage", "tariffRate", "energySubsidy"] as const;

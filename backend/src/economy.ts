@@ -1,14 +1,4 @@
-type Settings = {
-  taxRate         : number;
-  publicSpending  : number;
-  interestRate    : number;
-  minimumWage     : number;
-  tariffRate      : number;
-  energySubsidy   : number;
-};
-
-export type PolicyInput = Pick<Settings, "taxRate" | "publicSpending" | "interestRate"> &
-  Partial<Pick<Settings, "minimumWage" | "tariffRate" | "energySubsidy">>;
+import { EventChoice, PolicyInput, Settings } from "../shared.types.js";
 
 export type InterestGroups = {
   workers: number;
@@ -36,8 +26,6 @@ type GameEvent = {
   description: string;
   requiresDecision: boolean;
 };
-
-export type EventChoice = "subsidise" | "passThrough";
 
 type HistoryEntry = {
   turn: number;
