@@ -295,13 +295,13 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: /energy prices jump/i })).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+    await user.click(screen.getByRole("button", { name: /subsidise household bills/i }));
 
     expect(await screen.findByText("$400")).toBeTruthy();
     const decisionCall = fetchMock.mock.calls.find(([input]) =>
       String(input).endsWith("/api/economy/event"),
     );
-    expect(JSON.parse(String(decisionCall?.[1]?.body))).toStrictEqual({ choice: "subsidize" });
+    expect(JSON.parse(String(decisionCall?.[1]?.body))).toStrictEqual({ choice: "subsidise" });
   });
 
   it("lets the player pass energy costs through to households", async () => {
@@ -354,7 +354,7 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     await screen.findByRole("heading", { name: /energy prices jump/i });
-    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+    await user.click(screen.getByRole("button", { name: /subsidise household bills/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain("Decision unavailable");
   });
@@ -378,7 +378,7 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     await screen.findByRole("heading", { name: /energy prices jump/i });
-    await user.click(screen.getByRole("button", { name: /subsidize household bills/i }));
+    await user.click(screen.getByRole("button", { name: /subsidise household bills/i }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Unable to apply the event decision.",
@@ -408,10 +408,10 @@ describe("Economy Simulator interface", () => {
 
     render(<App />);
     await screen.findByRole("heading", { name: /energy prices jump/i });
-    const subsidize = screen.getByRole("button", { name: /subsidize household bills/i });
+    const subsidise = screen.getByRole("button", { name: /subsidise household bills/i });
     const passThrough = screen.getByRole("button", { name: /pass costs through/i });
     act(() => {
-      fireEvent.click(subsidize);
+      fireEvent.click(subsidise);
       fireEvent.click(passThrough);
     });
 

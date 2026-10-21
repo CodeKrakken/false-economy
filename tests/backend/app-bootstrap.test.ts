@@ -79,7 +79,7 @@ describe("server bootstrap", () => {
 
       const unexpectedEventError = await request(app)
         .post("/api/economy/event")
-        .send({ choice: "subsidize" });
+        .send({ choice: "subsidise" });
       expect(unexpectedEventError.status).toBe(500);
 
       vi.doUnmock("../../backend/src/economy.js");

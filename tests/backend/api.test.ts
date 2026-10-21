@@ -193,14 +193,14 @@ describe("Economy API", () => {
 
     const decision = await request(eventApp)
       .post("/api/economy/event")
-      .send({ choice: "subsidize" });
+      .send({ choice: "subsidise" });
     expect(decision.status).toBe(200);
     expect(decision.body.pendingEvent).toBeNull();
     expect(decision.body.treasury).toBe(eventResponse.body.treasury - 100);
 
     const noPendingEvent = await request(eventApp)
       .post("/api/economy/event")
-      .send({ choice: "subsidize" });
+      .send({ choice: "subsidise" });
     expect(noPendingEvent.status).toBe(400);
     expect(noPendingEvent.body.error).toMatch(/no event is waiting/i);
 

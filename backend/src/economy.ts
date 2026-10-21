@@ -37,7 +37,7 @@ export type GameEvent = {
   requiresDecision: boolean;
 };
 
-export type EventChoice = "subsidize" | "passThrough";
+export type EventChoice = "subsidise" | "passThrough";
 
 export type HistoryEntry = {
   turn: number;
@@ -735,10 +735,10 @@ export function resolveEventDecision(economy: Economy, choice: EventChoice): Eco
     throw new RangeError("No event is waiting for a decision.");
   }
 
-  const subsidized = choice === "subsidize";
+  const subsidised = choice === "subsidise";
   const groups: InterestGroups = {
     ...economy.groups,
-    workers: bounded(economy.groups.workers + (subsidized ? 4 : -6), 0, 100),
+    workers: bounded(economy.groups.workers + (subsidised ? 4 : -6), 0, 100),
   };
   const approval = oneDecimal(bounded(
     groups.workers * 0.4 + groups.businesses * 0.35 + groups.publicSector * 0.25,
@@ -748,17 +748,17 @@ export function resolveEventDecision(economy: Economy, choice: EventChoice): Eco
   let nextEconomy: Economy = {
     ...economy,
     pendingEvent: null,
-    treasury: economy.treasury - (subsidized ? 100 : 0),
-    debt: bounded(economy.debt + (subsidized ? 100 : 0), 0, Number.MAX_VALUE),
-    inflation: bounded(economy.inflation + (subsidized ? 0.6 : 2), -Number.MAX_VALUE, Number.MAX_VALUE),
-    wellbeing: bounded(economy.wellbeing + (subsidized ? 4 : -5), 0, 100),
-    unrest: bounded(economy.unrest + (subsidized ? 1 : 8), 0, 100),
+    treasury: economy.treasury - (subsidised ? 100 : 0),
+    debt: bounded(economy.debt + (subsidised ? 100 : 0), 0, Number.MAX_VALUE),
+    inflation: bounded(economy.inflation + (subsidised ? 0.6 : 2), -Number.MAX_VALUE, Number.MAX_VALUE),
+    wellbeing: bounded(economy.wellbeing + (subsidised ? 4 : -5), 0, 100),
+    unrest: bounded(economy.unrest + (subsidised ? 1 : 8), 0, 100),
     groups,
     approval,
     history: [...economy.history, {
       turn: economy.turn,
       type: "policy",
-      text: subsidized
+      text: subsidised
         ? "Energy shock response: subsidised household bills at a fiscal cost."
         : "Energy shock response: passed higher energy costs through to households.",
     }],

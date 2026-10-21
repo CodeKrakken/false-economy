@@ -142,9 +142,9 @@ export function createApp(
       body === null ||
       Array.isArray(body) ||
       !("choice" in body) ||
-      (body.choice !== "subsidize" && body.choice !== "passThrough")
+      (body.choice !== "subsidise" && body.choice !== "passThrough")
     ) {
-      response.status(400).json({ error: "choice must be subsidize or passThrough." });
+      response.status(400).json({ error: "choice must be subsidise or passThrough." });
       return;
     }
 

@@ -329,8 +329,8 @@ function App() {
             <p>{economy.pendingEvent.description}</p>
             <div className="event-actions">
               <button className="button button-secondary" type="button"
-                onClick={() => void answerEvent("subsidize")} disabled={isBusy}>
-                Subsidize household bills
+                onClick={() => void answerEvent("subsidise")} disabled={isBusy}>
+                subsidise household bills
               </button>
               <button className="button button-secondary" type="button"
                 onClick={() => void answerEvent("passThrough")} disabled={isBusy}>

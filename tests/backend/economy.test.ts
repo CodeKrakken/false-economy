@@ -406,7 +406,7 @@ describe("advanceTurn", () => {
       tariffRate: 25,
       energySubsidy: 0,
     });
-    const subsidized = advanceTurn(economy, {
+    const subsidised = advanceTurn(economy, {
       ...policies,
       minimumWage: 12,
       tariffRate: 5,
@@ -415,9 +415,9 @@ describe("advanceTurn", () => {
 
     expect(protection.groups.businesses).toBeGreaterThan(openTrade.groups.businesses);
     expect(protection.inflation).toBeGreaterThan(openTrade.inflation);
-    expect(subsidized.treasury).toBeLessThan(openTrade.treasury);
-    expect(subsidized.wellbeing).toBeGreaterThan(openTrade.wellbeing);
-    expect(subsidized.inflation).toBeLessThan(openTrade.inflation);
+    expect(subsidised.treasury).toBeLessThan(openTrade.treasury);
+    expect(subsidised.wellbeing).toBeGreaterThan(openTrade.wellbeing);
+    expect(subsidised.inflation).toBeLessThan(openTrade.inflation);
   });
 
   it("schedules public investment and applies it once on its due turn", () => {
@@ -484,24 +484,24 @@ describe("advanceTurn", () => {
     const rolls = [0, 0];
     const event = advanceTurn(turnTwo, fullPolicies, () => rolls.shift() ?? 1);
 
-    const subsidized = resolveEventDecision(event, "subsidize");
+    const subsidised = resolveEventDecision(event, "subsidise");
     const passedThrough = resolveEventDecision(event, "passThrough");
-    expect(subsidized.pendingEvent).toBeNull();
-    expect(subsidized.treasury).toBe(event.treasury - 100);
-    expect(subsidized.wellbeing).toBeGreaterThan(passedThrough.wellbeing);
-    expect(subsidized.inflation).toBeLessThan(passedThrough.inflation);
-    expect(subsidized.indicatorHistory).toHaveLength(event.indicatorHistory.length);
-    expect(subsidized.indicatorHistory.at(-1)).toMatchObject({
+    expect(subsidised.pendingEvent).toBeNull();
+    expect(subsidised.treasury).toBe(event.treasury - 100);
+    expect(subsidised.wellbeing).toBeGreaterThan(passedThrough.wellbeing);
+    expect(subsidised.inflation).toBeLessThan(passedThrough.inflation);
+    expect(subsidised.indicatorHistory).toHaveLength(event.indicatorHistory.length);
+    expect(subsidised.indicatorHistory.at(-1)).toMatchObject({
       turn: event.turn,
-      treasury: subsidized.treasury,
-      inflation: subsidized.inflation,
+      treasury: subsidised.treasury,
+      inflation: subsidised.inflation,
     });
     expect(passedThrough.indicatorHistory.at(-1)).toMatchObject({
       turn: event.turn,
       treasury: passedThrough.treasury,
       inflation: passedThrough.inflation,
     });
-    expect(() => resolveEventDecision(createInitialEconomy(), "subsidize")).toThrow(
+    expect(() => resolveEventDecision(createInitialEconomy(), "subsidise")).toThrow(
       /no event is waiting/i,
     );
   });

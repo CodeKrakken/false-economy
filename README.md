@@ -76,7 +76,7 @@ Invalid or non-finite values return HTTP `400` with a descriptive JSON error.
 
 ### `POST /api/economy/event`
 
-Resolves a pending energy-price shock with `{"choice":"subsidize"}` or `{"choice":"passThrough"}`. The endpoint rejects choices when no decision is pending.
+Resolves a pending energy-price shock with `{"choice":"subsidise"}` or `{"choice":"passThrough"}`. The endpoint rejects choices when no decision is pending.
 
 ### `POST /api/economy/reset`
 
