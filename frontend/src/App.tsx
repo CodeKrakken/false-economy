@@ -3,16 +3,18 @@ import type { KeyboardEvent } from "react";
 import {
   getAdviserAdvice,
   getEconomicWarnings,
-  type AchievementId,
-  type Economy,
-  type EventChoice,
-  type IndicatorSnapshot,
-} from "../../backend/src/economy.js";
+} from "../shared.functions.js";
+import type {
+  AchievementId,
+  Economy,
+  EventChoice,
+  IndicatorSnapshot,
+} from "../shared.types.js";
 import CompetingInterests from "./CompetingInterests";
 import EconomicIndicators from "./EconomicIndicators";
 import PolicySettings from "./PolicySettings";
-import type { ActiveRequest, Policies, PolicyInputs } from "./PolicySettings";
-import { formatIndicator, formatMoney, formatPercent, formatPopulation } from "./indicators";
+import type { ActiveRequest, Policies, PolicyInputs } from "../shared.types.js";
+import { formatIndicator, formatMoney, formatPercent, formatPopulation } from "../shared.functions.js";
 import "./styles.css";
 
 const TURN_INTERVAL_MS = 1000;

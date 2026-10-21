@@ -7,9 +7,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Economy, IndicatorSnapshot } from "../../backend/src/economy.js";
-import { formatIndicator, formatPercent } from "./indicators";
-import type { Indicator } from "./indicators";
+import type { Economy, IndicatorSnapshot, Indicator } from "../shared.types.js";
+import { formatIndicator, formatPercent } from "../shared.functions.js";
 
 type IndicatorCardProps = {
   economy: Economy;

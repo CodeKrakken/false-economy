@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import IndicatorCard from "../../frontend/src/IndicatorCard";
-import { createInitialEconomy } from "../../backend/src/economy.js";
-import { INDICATORS } from "../../frontend/src/indicators";
+import { createInitialEconomy } from "./shared/economy-fixtures";
+import { INDICATORS } from "../../frontend/shared.data.js";
 
 vi.mock("recharts", async () => {
   const React = await import("react");

@@ -1,5 +1,5 @@
-import type { Economy, IndicatorSnapshot } from "../../backend/src/economy.js";
-import { INDICATORS } from "./indicators";
+import type { Economy, IndicatorSnapshot } from "../shared.types.js";
+import { INDICATORS } from "../shared.data.js";
 import IndicatorCard from "./IndicatorCard";
 
 type EconomicIndicatorsProps = {

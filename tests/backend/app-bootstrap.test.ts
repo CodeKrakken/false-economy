@@ -12,7 +12,7 @@ const policies = {
 };
 
 afterEach(() => {
-  vi.doUnmock("../../backend/src/economy.js");
+  vi.doUnmock("../../backend/shared.functions.js");
   vi.resetModules();
 });
 
@@ -24,7 +24,7 @@ describe("server bootstrap", () => {
     mkdirSync(clientDirectory, { recursive: true });
     writeFileSync(indexFile, "<!doctype html><title>Economy</title>");
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
-    vi.doMock("../../backend/src/economy.js", () => ({
+    vi.doMock("../../backend/shared.functions.js", () => ({
       createInitialEconomy: () => ({
         turn: 1,
         started: true,
@@ -82,7 +82,7 @@ describe("server bootstrap", () => {
         .send({ choice: "subsidise" });
       expect(unexpectedEventError.status).toBe(500);
 
-      vi.doUnmock("../../backend/src/economy.js");
+      vi.doUnmock("../../backend/shared.functions.js");
       const noClientRoot = mkdtempSync(join(tmpdir(), "false-economy-no-client-"));
       const noClientCwd = vi.spyOn(process, "cwd").mockReturnValue(noClientRoot);
       try {

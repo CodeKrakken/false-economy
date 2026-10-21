@@ -1,138 +1,18 @@
-import { EventChoice, PolicyInput, Settings } from "../shared.types.js";
-
-export type InterestGroups = {
-  workers: number;
-  businesses: number;
-  publicSector: number;
-};
-
-type ScheduledEffect = {
-  kind: "capacity";
-  dueTurn: number;
-  amount: number;
-};
-
-type EventType =
-  | "energyShock"
-  | "recession"
-  | "publicStrike"
-  | "taxWindfall"
-  | "tradeDisruption"
-  | "borrowingShock";
-
-type GameEvent = {
-  type: EventType;
-  title: string;
-  description: string;
-  requiresDecision: boolean;
-};
-
-type HistoryEntry = {
-  turn: number;
-  type: "policy" | "event" | "milestone";
-  text: string;
-  eventType?: EventType;
-};
-
-export type IndicatorSnapshot = Pick<
+import type {
+  AchievementId,
   Economy,
-  | "turn"
-  | "gdp"
-  | "inflation"
-  | "unemployment"
-  | "averageWage"
-  | "treasury"
-  | "debt"
-  | "approval"
-  | "population"
-  | "wellbeing"
-  | "productiveCapacity"
-  | "resourceReserves"
-  | "unrest"
->;
-
-export type AchievementId =
-  | "balancedBudget"
-  | "priceStability"
-  | "weatheredRecession"
-  | "resilientInvestment";
-
-type EconomyRules = {
-  overthrowApproval: number;
-  overthrowUnrest: number;
-  overthrowGraceTurns: number;
-  insolvencyLimit: number;
-  insolvencyGraceTurns: number;
-  collapseGdp: number;
-  collapseGraceTurns: number;
-};
-
-type GameStart = {
-  gdp: number;
-  inflation: number;
-  treasury: number;
-  population: number;
-};
-
-type FinalReport = {
-  reason: string;
-  gdpChange: number;
-  inflationChange: number;
-  treasuryChange: number;
-  populationChange: number;
-  approval: number;
-  unrest: number;
-  history: HistoryEntry[];
-};
-
-type GameOutcome = {
-  kind: "defeat";
-  reason: string;
-  endedTurn: number;
-  report: FinalReport;
-};
-
-type AdviserAdvice = {
-  treasury: string;
-  political: string;
-};
-
-export type Economy = {
-  turn: number;
-  started: boolean;
-  gdp: number;
-  growthRate: number;
-  inflation: number;
-  unemployment: number;
-  treasury: number;
-  taxRate: number;
-  publicSpending: number;
-  interestRate: number;
-  minimumWage: number;
-  averageWage: number;
-  tariffRate: number;
-  energySubsidy: number;
-  approval: number;
-  debt: number;
-  population: number;
-  wellbeing: number;
-  unrest: number;
-  productiveCapacity: number;
-  resourceReserves: number;
-  groups: InterestGroups;
-  pendingEffects: ScheduledEffect[];
-  pendingEvent: GameEvent | null;
-  overthrowRiskTurns: number;
-  insolvencyTurns: number;
-  collapseTurns: number;
-  headline: string;
-  history: HistoryEntry[];
-  indicatorHistory: IndicatorSnapshot[];
-  achievements: AchievementId[];
-  outcome: GameOutcome | null;
-  gameStart: GameStart;
-  rules: EconomyRules;
-};
+  EconomyRules,
+  EventChoice,
+  EventType,
+  GameEvent,
+  GameOutcome,
+  HistoryEntry,
+  IndicatorSnapshot, 
+  InterestGroups,
+  PolicyInput,
+  ScheduledEffect,
+  Settings,
+} from "./shared.types.js";
 
 const DEFAULT_RULES: EconomyRules = {
   overthrowApproval: 25,
@@ -470,48 +350,6 @@ function addAchievements(economy: Economy, treasuryChange: number): AchievementI
   }
   if (economy.wellbeing >= 65 && economy.treasury >= 0) earned.add("resilientInvestment");
   return [...earned];
-}
-
-export function getEconomicWarnings(economy: Economy): string[] {
-  const warnings: string[] = [];
-  if (economy.inflation > 5) warnings.push("Inflation is above the 5% resilience ceiling.");
-  if (economy.unemployment > 8) warnings.push("Unemployment is above 8%.");
-  if (economy.treasury < 0) warnings.push("Treasury is below zero.");
-  if (economy.gdp <= economy.rules.collapseGdp * 1.2) warnings.push("GDP is close to collapse.");
-  if (economy.population < economy.gameStart.population * 0.9) warnings.push("Population is declining.");
-  if (hasOverthrowRisk(economy)) {
-    warnings.push("Severe unrest and economic crisis put the government at risk of overthrow.");
-  } else if (economy.approval < 40 && economy.unrest >= 55) {
-    warnings.push("Low approval and high unrest threaten the government.");
-  }
-  return warnings;
-}
-
-export function getAdviserAdvice(economy: Economy): AdviserAdvice {
-  let treasury: string;
-  if (economy.treasury < 0 || economy.debt > 1000) {
-    treasury = "Treasury adviser: debt and deficit risk call for a credible fiscal plan.";
-  } else if (economy.inflation > 5) {
-    treasury = "Treasury adviser: inflation is eroding purchasing power and needs restraint.";
-  } else {
-    treasury = "Treasury adviser: the budget is balanced and debt remains contained.";
-  }
-
-  let political: string;
-  if (hasOverthrowRisk(economy)) {
-    political = "Political adviser: severe unrest and economic crisis put the government at risk of overthrow.";
-  } else if (economy.approval < 40 && economy.unrest >= 55) {
-    political = "Political adviser: public anger is approaching overthrow risk.";
-  } else if (economy.groups.businesses < 40) {
-    political = "Political adviser: squeezed business margins may be holding back investment and hiring.";
-  } else if (economy.groups.workers < 40) {
-    political = "Political adviser: wages, job prospects, or prices are squeezing household demand.";
-  } else if (economy.groups.publicSector < 40) {
-    political = "Political adviser: strained public services can erode living standards.";
-  } else {
-    political = "Political adviser: public support is broad, but policy trade-offs remain.";
-  }
-  return { treasury, political };
 }
 
 export function advanceTurn(

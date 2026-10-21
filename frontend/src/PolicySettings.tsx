@@ -1,13 +1,6 @@
 import type { KeyboardEvent } from "react";
-import type { Economy } from "../../backend/src/economy.js";
+import type { ActiveRequest, Economy, Policies, PolicyInputs } from "../shared.types.js";
 import PolicyControl from "./PolicyControl";
-
-export type Policies = Pick<
-  Economy,
-  "taxRate" | "publicSpending" | "interestRate" | "minimumWage" | "tariffRate" | "energySubsidy"
->;
-export type PolicyInputs = { [Key in keyof Policies]: string };
-export type ActiveRequest = "advance" | "start" | "reset" | "event" | null;
 
 const POLICY_CONTROLS: Array<{
   key: keyof Policies;

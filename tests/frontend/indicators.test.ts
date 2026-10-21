@@ -5,8 +5,11 @@ import {
   formatPercent,
   formatPopulation,
   formatWage,
-  INDICATORS,
-} from "../../frontend/src/indicators";
+} from "../../frontend/shared.functions.js";
+
+import {
+  INDICATORS
+} from "../../frontend/shared.data.js";
 
 describe("indicator formatting and metadata", () => {
   it("formats every indicator value and safely handles non-finite values", () => {

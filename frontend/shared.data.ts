@@ -1,14 +1,4 @@
-import type { IndicatorSnapshot } from "../../backend/src/economy.js";
-
-type IndicatorKey = Exclude<keyof IndicatorSnapshot, "turn">;
-type IndicatorFormat = "money" | "percent" | "wage" | "population";
-export type Indicator = {
-  key: IndicatorKey;
-  name: string;
-  unit: string;
-  format: IndicatorFormat;
-  color: string;
-};
+import type { Indicator } from "./shared.types.js";
 
 export const INDICATORS: Indicator[] = [
   { key: "gdp", name: "Gross domestic product", unit: "GDP", format: "money", color: "#b30d08" },
@@ -24,35 +14,3 @@ export const INDICATORS: Indicator[] = [
   { key: "resourceReserves", name: "Resource reserves", unit: "RESOURCE INDEX", format: "percent", color: "#557e92" },
   { key: "unrest", name: "Social unrest", unit: "PUBLIC TENSION", format: "percent", color: "#9f3a31" },
 ];
-
-export function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-export function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
-
-export function formatWage(value: number): string {
-  return `${new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value)}/hr`;
-}
-
-export function formatPopulation(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
-}
-
-export function formatIndicator(value: number, format: IndicatorFormat): string {
-  if (!Number.isFinite(value)) return "N/A";
-  if (format === "money") return formatMoney(value);
-  if (format === "percent") return formatPercent(value);
-  if (format === "wage") return formatWage(value);
-  return formatPopulation(value);
-}
