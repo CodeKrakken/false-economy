@@ -10,6 +10,8 @@ import {
   type PolicyInput,
 } from "./economy.js";
 
+import { type EventChoice } from '../shared.types.js'
+
 const REQUIRED_POLICY_FIELDS = ["taxRate", "publicSpending", "interestRate"] as const;
 const OPTIONAL_POLICY_FIELDS = ["minimumWage", "tariffRate", "energySubsidy"] as const;
 

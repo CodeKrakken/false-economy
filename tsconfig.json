@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./backend/src",
+    "rootDir": "./backend",
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
@@ -13,5 +13,5 @@
     "noEmitOnError": true,
     "types": ["node"]
   },
-  "include": ["backend/src/**/*.ts"]
+  "include": ["backend/**/*.ts"]
 }
