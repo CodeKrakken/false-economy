@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import IndicatorCard from "../../frontend/src/IndicatorCard";
-import { createInitialEconomy } from "./shared/economy-fixtures";
+import { createInitialEconomy } from "../../shared.functions.js";
 import { INDICATORS } from "../../frontend/shared.data.js";
 
 vi.mock("recharts", async () => {

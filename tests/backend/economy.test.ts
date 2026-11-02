@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceTurn,
-  createInitialEconomy,
   resolveEventDecision,
   startGame,
 } from "../../backend/shared.functions.js";
+import { createInitialEconomy } from "../../shared.functions.js";
 import type { Economy } from "../../backend/shared.types.js";
 
 describe("createInitialEconomy", () => {

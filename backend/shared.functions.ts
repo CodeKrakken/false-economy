@@ -1,7 +1,6 @@
 import type {
   AchievementId,
   Economy,
-  EconomyRules,
   EventChoice,
   EventType,
   GameEvent,
@@ -10,46 +9,68 @@ import type {
   IndicatorSnapshot, 
   InterestGroups,
   PolicyInput,
-  ScheduledEffect,
   Settings,
 } from "./shared.types.js";
-
-const DEFAULT_RULES: EconomyRules = {
-  overthrowApproval: 25,
-  overthrowUnrest: 80,
-  overthrowGraceTurns: 2,
-  insolvencyLimit: -1000,
-  insolvencyGraceTurns: 2,
-  collapseGdp: 500,
-  collapseGraceTurns: 3,
-};
+import { hasOverthrowRisk } from "../shared.functions.js";
 
 const POLICY_LIMITS: Record<keyof Settings, [number, number]> = {
-  taxRate: [0, 60],
-  publicSpending: [0, 500],
-  interestRate: [0, 20],
-  minimumWage: [0, 30],
-  tariffRate: [0, 40],
-  energySubsidy: [0, 300],
+  taxRate         : [0,  60],
+  publicSpending  : [0, 500],
+  interestRate    : [0,  20],
+  minimumWage     : [0,  30],
+  tariffRate      : [0,  40],
+  energySubsidy   : [0, 300],
 };
 
-const EVENT_INTERVAL = 3;
-const EVENT_CHANCE = 0.4;
-const CRITICAL_UNREST = 95;
-const CRITICAL_APPROVAL = 40;
-const CRITICAL_UNEMPLOYMENT = 20;
-const CRITICAL_WELLBEING = 25;
-const CRITICAL_INFLATION = 15;
+const EVENT_INTERVAL        = 3;
+const EVENT_CHANCE          = 0.4;
 const EVENTS: GameEvent[] = [
-  { type: "energyShock", title: "Energy prices jump", description: "A global supply squeeze pushes household energy costs higher.", requiresDecision: true },
-  { type: "recession", title: "Trading partners slide into recession", description: "Weaker foreign demand cuts output and raises unemployment.", requiresDecision: false },
-  { type: "publicStrike", title: "Public services face a strike", description: "A pay dispute disrupts public services and adds to social pressure.", requiresDecision: false },
-  { type: "taxWindfall", title: "A tax windfall eases the budget", description: "Unexpected receipts improve the government's immediate finances.", requiresDecision: false },
-  { type: "tradeDisruption", title: "A trade route is disrupted", description: "Import delays raise costs and interrupt production.", requiresDecision: false },
-  { type: "borrowingShock", title: "Borrowing costs rise suddenly", description: "Investors demand a higher premium to finance the government.", requiresDecision: false },
+  { 
+    type              : "energyShock", 
+    title             : "Energy prices jump", 
+    description       : "A global supply squeeze pushes household energy costs higher.", 
+    requiresDecision  : true 
+  },
+  { 
+    type              : "recession", 
+    title             : "Trading partners slide into recession", 
+    description       : "Weaker foreign demand cuts output and raises unemployment.", 
+    requiresDecision  : false 
+  },
+  { 
+    type              : "publicStrike", 
+    title             : "Public services face a strike", 
+    description       : "A pay dispute disrupts public services and adds to social pressure.", 
+    requiresDecision  : false 
+  },
+  { 
+    type              : "taxWindfall", 
+    title             : "A tax windfall eases the budget", 
+    description       : "Unexpected receipts improve the government's immediate finances.", 
+    requiresDecision  : false 
+  },
+  { 
+    type              : "tradeDisruption", 
+    title             : "A trade route is disrupted", 
+    description       : "Import delays raise costs and interrupt production.", 
+    requiresDecision  : false 
+  },
+  { 
+    type              : "borrowingShock", 
+    title             : "Borrowing costs rise suddenly", 
+    description       : "Investors demand a higher premium to finance the government.", 
+    requiresDecision  : false 
+  },
 ];
 
-function bounded(value: number, minimum: number, maximum: number): number {
+function bounded(
+
+  value   : number, 
+  minimum : number, 
+  maximum : number
+
+): number {
+
   if (Number.isNaN(value)) return minimum;
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -58,50 +79,69 @@ function oneDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function policiesFor(economy: Economy, input: PolicyInput): Settings {
+function policiesFor(
+
+  economy : Economy, 
+  input   : PolicyInput
+
+): Settings {
+  
   return {
-    taxRate: input.taxRate,
-    publicSpending: input.publicSpending,
-    interestRate: input.interestRate,
-    minimumWage: input.minimumWage ?? economy.minimumWage,
-    tariffRate: input.tariffRate ?? economy.tariffRate,
-    energySubsidy: input.energySubsidy ?? economy.energySubsidy,
+    taxRate         : input.taxRate,
+    publicSpending  : input.publicSpending,
+    interestRate    : input.interestRate,
+    minimumWage     : input.minimumWage   ?? economy.minimumWage,
+    tariffRate      : input.tariffRate    ?? economy.tariffRate,
+    energySubsidy   : input.energySubsidy ?? economy.energySubsidy,
   };
 }
 
 function validateSettings(policies: Settings): void {
   for (const field of Object.keys(POLICY_LIMITS) as (keyof Settings)[]) {
+
     const [minimum, maximum] = POLICY_LIMITS[field];
-    const value = policies[field];
-    if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    const value              = policies[field];
+    
+    if (
+      !Number.isFinite(value) || 
+      value < minimum         || 
+      value > maximum
+    ) {
       throw new RangeError(`${field} must be a finite number between ${minimum} and ${maximum}.`);
     }
   }
 }
 
 function groupsFor(
-  economy: Economy,
-  policies: Settings,
-  inflation: number,
-  unemployment: number,
-  averageWage: number,
-): InterestGroups {
+
+  economy       : Economy,
+  policies      : Settings,
+  inflation     : number,
+  unemployment  : number,
+  averageWage   : number,
+
+) : InterestGroups {
+
   const wageChange = policies.minimumWage - economy.minimumWage;
+  
   return {
     workers: oneDecimal(bounded(
-      economy.groups.workers +
+      (
+        economy.groups.workers +
         wageChange * 0.5 +
         (averageWage - economy.averageWage) +
         Math.max(0, 5 - unemployment) * 0.08 -
         Math.max(0, unemployment - 8) * 0.12 -
         Math.max(0, inflation - 2) * 0.4 -
         Math.max(0, 50 - economy.wellbeing) * 0.03 +
-        policies.energySubsidy * 0.015,
+        policies.energySubsidy * 0.015
+      ),
       0,
       100,
     )),
     businesses: oneDecimal(bounded(
-      economy.groups.businesses -
+      ( 
+        economy.groups.businesses -
         wageChange * 0.3 +
         (25 - policies.taxRate) * 0.03 +
         (policies.tariffRate - economy.tariffRate) * 0.1 -
@@ -109,14 +149,17 @@ function groupsFor(
         (policies.interestRate - economy.interestRate) * 0.15 -
         Math.max(0, averageWage - 15) * 0.08 +
         Math.max(0, economy.growthRate) * 0.02 -
-        Math.max(0, unemployment - 8) * 0.03,
+        Math.max(0, unemployment - 8) * 0.03
+      ),
       0,
       100,
     )),
     publicSector: oneDecimal(bounded(
-      economy.groups.publicSector +
+      (
+        economy.groups.publicSector +
         (policies.publicSpending - economy.publicSpending) * 0.02 +
-        (policies.publicSpending - 200) * 0.005,
+        (policies.publicSpending - 200) * 0.005
+      ),
       0,
       100,
     )),
@@ -125,19 +168,33 @@ function groupsFor(
 
 function approvalFor(groups: InterestGroups): number {
   return oneDecimal(bounded(
-    groups.workers * 0.4 + groups.businesses * 0.35 + groups.publicSector * 0.25,
+    (
+      groups.workers * 0.4 + 
+      groups.businesses * 0.35 + 
+      groups.publicSector * 0.25
+    ),
     0,
     100,
   ));
 }
 
-export function startGame(economy: Economy, input: PolicyInput): Economy {
+export function startGame(
+
+  economy : Economy, 
+  input   : PolicyInput
+
+): Economy {
+  
   if (economy.started || economy.outcome) {
     throw new RangeError("The game has already started.");
   }
+
   const policies = policiesFor(economy, input);
+
   validateSettings(policies);
+
   const averageWage = Math.max(economy.averageWage, policies.minimumWage);
+
   const groups = groupsFor(
     economy,
     policies,
@@ -145,59 +202,78 @@ export function startGame(economy: Economy, input: PolicyInput): Economy {
     economy.unemployment,
     averageWage,
   );
+
   return recordIndicatorSnapshot({
     ...economy,
     ...policies,
     averageWage,
     groups,
-    approval: approvalFor(groups),
-    started: true,
-    history: [...economy.history, ...policyHistory(economy, policies, economy.turn)],
-    indicatorHistory: [],
+    approval          : approvalFor(groups),
+    started           : true,
+    history           : [
+      ...economy.history, 
+      ...policyHistory(
+        economy, 
+        policies, 
+        economy.turn
+      )
+    ],
+    indicatorHistory  : [],
   });
 }
 
 function recordIndicatorSnapshot(economy: Economy): Economy {
   const snapshot: IndicatorSnapshot = {
-    turn: economy.turn,
-    gdp: economy.gdp,
-    inflation: economy.inflation,
-    unemployment: economy.unemployment,
-    averageWage: economy.averageWage,
-    treasury: economy.treasury,
-    debt: economy.debt,
-    approval: economy.approval,
-    population: economy.population,
-    wellbeing: economy.wellbeing,
-    productiveCapacity: economy.productiveCapacity,
-    resourceReserves: economy.resourceReserves,
-    unrest: economy.unrest,
+    turn                : economy.turn,
+    gdp                 : economy.gdp,
+    inflation           : economy.inflation,
+    unemployment        : economy.unemployment,
+    averageWage         : economy.averageWage,
+    treasury            : economy.treasury,
+    debt                : economy.debt,
+    approval            : economy.approval,
+    population          : economy.population,
+    wellbeing           : economy.wellbeing,
+    productiveCapacity  : economy.productiveCapacity,
+    resourceReserves    : economy.resourceReserves,
+    unrest              : economy.unrest,
   };
   const previous = economy.indicatorHistory.at(-1);
   return {
     ...economy,
-    indicatorHistory: previous?.turn === economy.turn
-      ? [...economy.indicatorHistory.slice(0, -1), snapshot]
-      : [...economy.indicatorHistory, snapshot],
+    indicatorHistory: previous?.turn === economy.turn ? (
+      [...economy.indicatorHistory.slice(0, -1), snapshot]
+    ) : (
+      [...economy.indicatorHistory, snapshot]
+    ),
   };
 }
 
-function policyHistory(economy: Economy, policies: Settings, turn: number): HistoryEntry[] {
-  const labels: Record<keyof Settings, string> = {
-    taxRate: "taxes",
-    publicSpending: "public spending",
-    interestRate: "interest rates",
-    minimumWage: "minimum wage",
-    tariffRate: "tariffs",
-    energySubsidy: "energy subsidies",
-  };
-  const changed = (Object.keys(labels) as (keyof Settings)[])
-    .filter((field) => economy[field] !== policies[field])
-    .map((field) => `${labels[field]} ${economy[field]} to ${policies[field]}`);
+function policyHistory(
 
-  return changed.length > 0
-    ? [{ turn, type: "policy", text: `Policy changed: ${changed.join(", ")}.` }]
-    : [];
+  economy   : Economy, 
+  policies  : Settings, 
+  turn      : number
+
+) : HistoryEntry[] {
+
+  const labels: Record<keyof Settings, string> = {
+    taxRate         : "taxes",
+    publicSpending  : "public spending",
+    interestRate    : "interest rates",
+    minimumWage     : "minimum wage",
+    tariffRate      : "tariffs",
+    energySubsidy   : "energy subsidies",
+  };
+
+  const changed = (Object.keys(labels) as (keyof Settings)[]).filter(
+    field => economy[field] !== policies[field]).map(
+    field => `${labels[field]} ${economy[field]} to ${policies[field]}`
+  );
+
+  return changed.length > 0 ? 
+  [{ turn, type: "policy", text: `Policy changed: ${changed.join(", ")}.` }]
+  : [];
 }
 
 function chooseEvent(turn: number, random: () => number): GameEvent | null {
@@ -325,20 +401,6 @@ function outcomeFor(economy: Economy): GameOutcome | null {
       history: economy.history,
     },
   };
-}
-
-function hasOverthrowRisk(economy: Economy): boolean {
-  const sustainedLowSupport =
-    economy.approval < economy.rules.overthrowApproval &&
-    economy.unrest >= economy.rules.overthrowUnrest;
-  const criticalSignals =
-    Number(economy.approval < CRITICAL_APPROVAL) +
-    Number(economy.unemployment >= CRITICAL_UNEMPLOYMENT) +
-    Number(economy.wellbeing <= CRITICAL_WELLBEING) +
-    Number(economy.inflation >= CRITICAL_INFLATION) +
-    Number(economy.growthRate <= -5);
-  const severeCrisis = economy.unrest >= CRITICAL_UNREST && criticalSignals > 0;
-  return sustainedLowSupport || severeCrisis;
 }
 
 function addAchievements(economy: Economy, treasuryChange: number): AchievementId[] {
@@ -591,46 +653,4 @@ export function resolveEventDecision(economy: Economy, choice: EventChoice): Eco
   };
   nextEconomy = { ...nextEconomy, headline: headlineFor(nextEconomy, economy.pendingEvent) };
   return recordIndicatorSnapshot(nextEconomy);
-}
-
-export function createInitialEconomy(
-  rules: Partial<EconomyRules> = {},
-): Economy {
-  const economy: Economy = {
-    turn: 1,
-    started: false,
-    gdp: 1000,
-    growthRate: 2,
-    inflation: 2,
-    unemployment: 5,
-    treasury: 500,
-    taxRate: 25,
-    publicSpending: 200,
-    interestRate: 3,
-    minimumWage: 12,
-    averageWage: 15,
-    tariffRate: 5,
-    energySubsidy: 0,
-    approval: 60,
-    debt: 0,
-    population: 1_000_000,
-    wellbeing: 60,
-    unrest: 20,
-    productiveCapacity: 1600,
-    resourceReserves: 100,
-    groups: { workers: 60, businesses: 60, publicSector: 60 },
-    pendingEffects: [],
-    pendingEvent: null,
-    overthrowRiskTurns: 0,
-    insolvencyTurns: 0,
-    collapseTurns: 0,
-    headline: "A new government inherits steady foundations",
-    history: [],
-    indicatorHistory: [],
-    achievements: [],
-    outcome: null,
-    gameStart: { gdp: 1000, inflation: 2, treasury: 500, population: 1_000_000 },
-    rules: { ...DEFAULT_RULES, ...rules },
-  };
-  return economy;
 }

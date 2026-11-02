@@ -1,5 +1,6 @@
 import type { AdviserAdvice, Economy } from "./shared.types.js";
 import type { IndicatorFormat } from "./shared.types.js";
+import { hasOverthrowRisk } from "../shared.functions.js";
 
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -31,20 +32,6 @@ export function formatIndicator(value: number, format: IndicatorFormat): string 
   if (format === "percent") return formatPercent(value);
   if (format === "wage") return formatWage(value);
   return formatPopulation(value);
-}
-
-function hasOverthrowRisk(economy: Economy): boolean {
-  const sustainedLowSupport =
-    economy.approval < economy.rules.overthrowApproval &&
-    economy.unrest >= economy.rules.overthrowUnrest;
-  const criticalSignals =
-    Number(economy.approval < 40) +
-    Number(economy.unemployment >= 20) +
-    Number(economy.wellbeing <= 25) +
-    Number(economy.inflation >= 15) +
-    Number(economy.growthRate <= -5);
-  const severeCrisis = economy.unrest >= 95 && criticalSignals > 0;
-  return sustainedLowSupport || severeCrisis;
 }
 
 export function getEconomicWarnings(economy: Economy): string[] {

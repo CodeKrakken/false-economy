@@ -1,25 +1,36 @@
-import { existsSync } from "node:fs";
-import express, { type ErrorRequestHandler } from "express";
-import { resolve } from "node:path";
+import { existsSync }               from "node:fs";
+import express                      from "express";
+import { type ErrorRequestHandler } from "express";
+import { resolve }                  from "node:path";
+
 import {
   advanceTurn,
-  createInitialEconomy,
   resolveEventDecision,
   startGame,
 } from "../shared.functions.js";
+import { createInitialEconomy } from "../../shared.functions.js";
 
 import type { EventChoice, PolicyInput } from "../shared.types.js";
 
-const REQUIRED_POLICY_FIELDS = ["taxRate", "publicSpending", "interestRate"] as const;
-const OPTIONAL_POLICY_FIELDS = ["minimumWage", "tariffRate", "energySubsidy"] as const;
+const REQUIRED_POLICY_FIELDS = [
+  "taxRate", 
+  "publicSpending", 
+  "interestRate"
+] as const;
 
-function parsePolicyInput(body: unknown): { 
-  policyInput: PolicyInput } | { error: string 
-} {
+const OPTIONAL_POLICY_FIELDS = [
+  "minimumWage", 
+  "tariffRate", 
+  "energySubsidy"
+] as const;
+
+function parsePolicyInput(body: unknown) : (
+  { policyInput: PolicyInput } | { error: string }
+) {
 
   if (
-    typeof body !== "object" || 
-    body === null || 
+    typeof body !== "object"  || 
+    body === null             || 
     Array.isArray(body)
   ) {
     return { error: "Request body must be an object containing all three policy fields." };
@@ -51,9 +62,9 @@ function parsePolicyInput(body: unknown): {
 
   return {
     policyInput: {
-      taxRate         : values.taxRate as number,
+      taxRate         : values.taxRate        as number,
       publicSpending  : values.publicSpending as number,
-      interestRate    : values.interestRate as number,
+      interestRate    : values.interestRate   as number,
       ...(typeof values.minimumWage   === "number" ? { minimumWage    : values.minimumWage    } : {}),
       ...(typeof values.tariffRate    === "number" ? { tariffRate     : values.tariffRate     } : {}),
       ...(typeof values.energySubsidy === "number" ? { energySubsidy  : values.energySubsidy  } : {}),
@@ -138,13 +149,18 @@ export function createApp(
     const body: unknown = request.body;
 
     if (
-      typeof body !== "object" ||
-      body === null ||
-      Array.isArray(body) ||
-      !("choice" in body) ||
-      (body.choice !== "subsidise" && body.choice !== "passThrough")
+      typeof body !== "object"  ||
+      body === null             ||
+      Array.isArray(body)       ||
+      !("choice" in body)       ||
+      (
+        body.choice !== "subsidise" && 
+        body.choice !== "passThrough"
+      )
     ) {
-      response.status(400).json({ error: "choice must be subsidise or passThrough." });
+      response.status(400).json({ 
+        error: "choice must be subsidise or passThrough." 
+      });
       return;
     }
 
@@ -170,7 +186,10 @@ export function createApp(
 
     app.use((request, response, next) => {
 
-      if (request.path === "/api" || request.path.startsWith("/api/")) {
+      if (
+        request.path === "/api" || 
+        request.path.startsWith("/api/")
+      ) {
         next();
         return;
       }
@@ -185,12 +204,14 @@ export function createApp(
     response.status(404).json({ error: "Route not found." });
   });
 
-  const jsonErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
+  const jsonErrorHandler: ErrorRequestHandler = (
+    error, _request, response, next
+  ) => {
     
     if (
       typeof error === "object" &&
-      error !== null &&
-      "type" in error &&
+      error !== null            &&
+      "type" in error           &&
       error.type === "entity.parse.failed"
     ) {
       response.status(400).json({ error: "Malformed JSON request body." });

@@ -13,6 +13,7 @@ const policies = {
 
 afterEach(() => {
   vi.doUnmock("../../backend/shared.functions.js");
+  vi.doUnmock("../../shared.functions.js");
   vi.resetModules();
 });
 
@@ -25,17 +26,6 @@ describe("server bootstrap", () => {
     writeFileSync(indexFile, "<!doctype html><title>Economy</title>");
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
     vi.doMock("../../backend/shared.functions.js", () => ({
-      createInitialEconomy: () => ({
-        turn: 1,
-        started: true,
-        gdp: 1000,
-        inflation: 2,
-        unemployment: 5,
-        treasury: 500,
-        taxRate: 25,
-        publicSpending: 200,
-        interestRate: 3,
-      }),
       advanceTurn: () => {
         throw new Error("Unexpected simulation failure");
       },
@@ -45,6 +35,9 @@ describe("server bootstrap", () => {
       resolveEventDecision: () => {
         throw new Error("Unexpected event failure");
       },
+    }));
+    vi.doMock("../../shared.functions.js", () => ({
+      createInitialEconomy: () => ({ turn: 1, started: true }),
     }));
 
     try {
@@ -83,6 +76,7 @@ describe("server bootstrap", () => {
       expect(unexpectedEventError.status).toBe(500);
 
       vi.doUnmock("../../backend/shared.functions.js");
+      vi.doUnmock("../../shared.functions.js");
       const noClientRoot = mkdtempSync(join(tmpdir(), "false-economy-no-client-"));
       const noClientCwd = vi.spyOn(process, "cwd").mockReturnValue(noClientRoot);
       try {

@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["frontend/src/**/*", "frontend/shared*.ts"]
+  "include": ["frontend/src/**/*", "frontend/shared*.ts", "shared.functions.ts"]
 }

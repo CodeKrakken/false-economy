@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./backend",
+    "rootDir": ".",
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
@@ -13,5 +13,5 @@
     "noEmitOnError": true,
     "types": ["node"]
   },
-  "include": ["backend/**/*.ts"]
+  "include": ["backend/**/*.ts", "shared.functions.ts"]
 }

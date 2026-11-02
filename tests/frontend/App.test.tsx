@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../frontend/src/App";
-import { createInitialEconomy } from "./shared/economy-fixtures";
+import { createInitialEconomy } from "../../shared.functions.js";
 
 vi.mock("recharts", async () => {
   const React = await import("react");

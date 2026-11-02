@@ -2,12 +2,12 @@
   "name": "false-economy",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/backend/src/index.js",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:server": "tsx watch backend/src/server.ts",
     "build": "tsc && tsc -p tsconfig.frontend.json && vite build",
-    "start": "node dist/server.js",
+    "start": "node dist/backend/src/server.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

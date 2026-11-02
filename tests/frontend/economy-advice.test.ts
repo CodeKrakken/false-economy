@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getAdviserAdvice, getEconomicWarnings } from "../../frontend/shared.functions.js";
-import { createInitialEconomy } from "./shared/economy-fixtures";
+import { createInitialEconomy } from "../../shared.functions.js";
 
 describe("economy advice", () => {
   it("returns no warnings for a stable economy and state-specific warnings under pressure", () => {

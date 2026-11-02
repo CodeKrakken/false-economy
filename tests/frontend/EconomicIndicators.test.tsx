@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import EconomicIndicators from "../../frontend/src/EconomicIndicators";
-import { createInitialEconomy } from "./shared/economy-fixtures";
+import { createInitialEconomy } from "../../shared.functions.js";
 
 describe("EconomicIndicators", () => {
   it("renders the complete indicator grid from supplied economy history", () => {
