@@ -2,6 +2,8 @@
 
 A satirical, deterministic policy-strategy game about the trade-offs behind taxation, public services, monetary policy, wages, trade, and energy costs. Choose policies before starting; the live simulation then advances once per second until defeat.
 
+Built to demonstrate my agentic AI skills.
+
 ## Features
 
 - Six policy levers with bounded inputs and immediate, delayed, and distributional effects.
