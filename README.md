@@ -20,75 +20,21 @@ Built to demonstrate my agentic AI skills.
 - React 19, Vite 8.
 - Vitest, Supertest, React Testing Library, user-event, and jsdom.
 
-## Install And Run
+## Install and run
 
 ```sh
-npm ci
-```
-
-For local development, run the API and frontend in separate terminals:
-
-```sh
-PORT=3000 npm run dev:server
-npm run dev
-```
-
-Open <http://localhost:5173/>. Vite proxies `/api` requests to the backend at `http://localhost:3000`.
-
-```sh
-npm test
-npm run test:coverage
+git clone https://github.com/CodeKrakken/false-economy
+cd false-economy
+npm install
 npm run build
+npm start
 ```
 
-Run a production build with `npm start`; Express serves the API and built frontend together on port 8080 by default. Set `PORT` to choose another port. The game state is in memory and resets when the server restarts. It is a single-process demo, not a multi-user persistent service.
-
-## API
-
-### `GET /api/economy`
-
-Returns the full current game state, including indicators, group approval, pending effects/events, history, achievements, configurable rules, and any outcome report.
-
-### `POST /api/economy/start`
-
-Starts a new game with the submitted policies. `taxRate`, `publicSpending`, and `interestRate` are required; the other policy fields are optional. The game does not advance until this request succeeds.
-
-### `POST /api/economy/turn`
-
-Advances one turn after the game has started. `taxRate`, `publicSpending`, and `interestRate` are required. The other policy fields are optional for compatibility and retain their current values when omitted. Advancing before the game starts returns HTTP `409`.
-
-| Policy | Allowed range | Unit |
-| --- | ---: | --- |
-| `taxRate` | 0–60 | percent |
-| `publicSpending` | 0–500 | model units per turn |
-| `interestRate` | 0–20 | percent |
-| `minimumWage` | 0–30 | model currency per hour |
-| `tariffRate` | 0–40 | percent |
-| `energySubsidy` | 0–300 | model units per turn |
-
-Example:
-
-```sh
-curl -X POST http://localhost:3000/api/economy/turn \
-  -H 'Content-Type: application/json' \
-  -d '{"taxRate":30,"publicSpending":250,"interestRate":4,"minimumWage":15,"tariffRate":8,"energySubsidy":50}'
-```
-
-Invalid or non-finite values return HTTP `400` with a descriptive JSON error.
-
-### `POST /api/economy/event`
-
-Resolves a pending energy-price shock with `{"choice":"subsidise"}` or `{"choice":"passThrough"}`. The endpoint rejects choices when no decision is pending.
-
-### `POST /api/economy/reset`
-
-Restores the initial economy, rules, history, and achievement state.
-
-## Reading The Indicators
+## Playing the game
 
 This game is about keeping several pressures under control at the same time. If one number starts sliding badly, it usually means a broader problem is building: weak growth, rising prices, falling approval, or a budget crisis.
 
-| Indicator | What it means | If it starts going the wrong way |
+| Indicator | Purpose | Tips |
 | --- | --- | --- |
 | GDP | Total output of the economy. A higher number means more goods and services are being produced. | If GDP is falling for several turns, the economy is shrinking. Raise spending a bit, lower tax pressure, and avoid sudden austerity. |
 | Inflation | How fast prices are rising. | If inflation climbs too high, reduce pressure on households and businesses: lower spending, protect supply, and avoid overloading wages or tariffs. |
@@ -112,17 +58,6 @@ Do not chase every indicator at once. Pick the bottleneck that is causing the ot
 - If treasury is draining, fix the balance sheet before the political system breaks.
 - If approval or unrest is collapsing, protect living standards and jobs quickly.
 
-A losing direction usually means several indicators are moving together. The safest response is to fix the root pressure first, then stabilize the rest.
+A losing direction usually means several indicators are moving together. The safest response is to fix the root pressure first, then stabilise the rest.
 
-## Architecture
-
-- `backend/src/economy.ts` defines typed state, policy validation, effects, events, reporting, achievements, and pure turn transitions.
-- `backend/src/app.ts` provides the in-memory Express API and injectable random source; `backend/src/server.ts` starts it.
-- `frontend/src/App.tsx` renders indicators (including productive capacity and resource reserves), controls, warnings, events, advisers, milestones, and reports; it contains no economic formulas.
-- `frontend/src/styles.css` provides the responsive editorial interface.
-
-## Testing And Accessibility
-
-Backend tests under `tests/backend/` exercise deterministic policy, event, delayed-effect, outcome, and achievement cases, and use Supertest to cover the API contract and decision validation. Frontend tests under `tests/frontend/` use React Testing Library and user-event to cover the timed loop, policy editing, event choices, warnings, and reports. `npm run test:coverage` is expected to report 100% statements, branches, functions, and lines.
-
-The interface uses semantic sections and headings, labeled numeric controls with published ranges, keyboard-visible focus, status/alert regions, and responsive layouts. An open event pauses the timer until the player decides; a completed game stops normal progression.
+An open event pauses the timer until the player decides; a completed game stops normal progression.
