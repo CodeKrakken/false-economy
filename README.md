@@ -2,7 +2,7 @@
 
 A satirical, deterministic policy-strategy game about the trade-offs behind taxation, public services, monetary policy, wages, trade, and energy costs. Choose policies before starting; the live simulation then advances once per second until defeat.
 
-Built to demonstrate my agentic AI skills.
+Built to demonstrate my agentic AI skills. Based on WORLD3, Keynesian economics and Goodwin's class-struggle model. 
 
 ## Features
 
@@ -13,6 +13,8 @@ Built to demonstrate my agentic AI skills.
 - State-based newspaper headlines, treasury and political advisers, warnings, milestones, and a final defeat report.
 - Configurable defeat thresholds, plus grace periods for recoverable crises.
 - Responsive React dashboard and Express JSON API; the server owns game state and calculations.
+- An open event pauses the game for a user decision.
+- The game ends when the economy is no longer sustainable.
 
 ## Tech Stack
 
@@ -34,30 +36,17 @@ npm start
 
 This game is about keeping several pressures under control at the same time. If one number starts sliding badly, it usually means a broader problem is building: weak growth, rising prices, falling approval, or a budget crisis.
 
-| Indicator | Purpose | Tips |
+| Indicator  | Tips |
 | --- | --- | --- |
-| GDP | Total output of the economy. A higher number means more goods and services are being produced. | If GDP is falling for several turns, the economy is shrinking. Raise spending a bit, lower tax pressure, and avoid sudden austerity. |
-| Inflation | How fast prices are rising. | If inflation climbs too high, reduce pressure on households and businesses: lower spending, protect supply, and avoid overloading wages or tariffs. |
-| Unemployment | Share of workers without jobs. | If unemployment rises, support hiring and output. Increase spending, avoid high taxes, and keep productive capacity from collapsing. |
-| Average wage | Typical earnings per hour. | If wages are falling, people lose purchasing power. Raise the minimum wage carefully and protect living standards without creating runaway inflation. |
-| Treasury | Government cash balance. | If the treasury is shrinking or goes negative, cut wasteful spending, raise revenue, or reduce borrowing. |
-| Debt | Money the state owes. | If debt keeps rising, do not keep spending as if revenue is guaranteed. Slow the debt build-up and return to a stable budget. |
-| Approval | Public support for the government. | If approval drops, people feel the economy is not working. Lower taxes or costs, improve wellbeing, and reduce unrest before it becomes a political crisis. |
-| Population | Total citizens. | If population falls, the economy is in a deep social crisis. Protect wages, wellbeing, public services, and avoid conditions that create collapse. |
-| Wellbeing | Broad living-standard and public-satisfaction measure. | If wellbeing falls, inflation, unemployment, and low output are likely hurting daily life. Restore public services, wages, and stability. |
-| Productive capacity | The economy's maximum sustainable output. | If capacity falls, investment is too low or the economy is being strained. Restore public investment and avoid prolonged under-spending. |
-| Resource reserves | How much energy and material supply remains. | If reserves fall, shortages or rising costs are coming. Protect supply, avoid excessive demand, and respond to shocks before they hit output. |
-| Unrest | Social tension and protest risk. | If unrest rises, it is a warning sign. Cut the causes: inflation, low approval, weak wellbeing, and rising unemployment. |
-
-### A simple rule when the economy starts to go bad
-
-Do not chase every indicator at once. Pick the bottleneck that is causing the others to worsen:
-
-- If inflation is high, reduce price pressure before it drives unrest and approval down.
-- If GDP or capacity is falling, restore output and investment before the budget crisis deepens.
-- If treasury is draining, fix the balance sheet before the political system breaks.
-- If approval or unrest is collapsing, protect living standards and jobs quickly.
-
-A losing direction usually means several indicators are moving together. The safest response is to fix the root pressure first, then stabilise the rest.
-
-An open event pauses the timer until the player decides; a completed game stops normal progression.
+| GDP | If GDP falls, raise public spending and lower taxes |
+| Inflation | If inflation climbs too high, lower public spending, raise taxes, lower minimum wage and reduce tariffs |
+| Unemployment | If unemployment rises, raise public spending and lower taxes |
+| Average wage | If wages are falling, raise the minimum wage gradually |
+| Treasury | If the treasury is shrinking, cut public spending and raise taxes |
+| Public debt | If debt keeps rising, raise taxes, cut public spending, and raise the interest rate |
+| Public approval | If approval drops, lower taxes, raise public spending, and increase the minimum wage. |
+| Population | If population falls, raise the minimum wage, lower taxes, increase public spending and increase energy subsidies |
+| Wellbeing | If wellbeing falls, raise the minimum wage, increase public spending, lower taxes and increase energy subsidies |
+| Productive capacity | If capacity falls, raise public spending, lower taxes, and increase energy subsidies |
+| Resource reserves | If reserves fall, increase energy subsidies, reduce tariffs, and lower public spending |
+| Social unrest | If unrest rises, lower taxes, raise public spending, raise the minimum wage and reduce tariffs |
