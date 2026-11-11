@@ -37,7 +37,7 @@ npm start
 This game is about keeping several pressures under control at the same time. If one number starts sliding badly, it usually means a broader problem is building: weak growth, rising prices, falling approval, or a budget crisis.
 
 | Indicator  | Tips |
-| --- | --- | --- |
+| --- | --- |
 | GDP | If GDP falls, raise public spending and lower taxes |
 | Inflation | If inflation climbs too high, lower public spending, raise taxes, lower minimum wage and reduce tariffs |
 | Unemployment | If unemployment rises, raise public spending and lower taxes |
