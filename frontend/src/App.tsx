@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import {
-  getAdviserAdvice,
-  getEconomicWarnings,
-} from "../shared.functions.js";
+import { getAdviserAdvice, getEconomicWarnings, formatMoney, formatPercent, formatPopulation } from "../shared.functions.js";
 import type {
   AchievementId,
   Economy,
   EventChoice,
-  IndicatorSnapshot,
+  IndicatorSnapshot, ActiveRequest, Policies, PolicyInputs
 } from "../shared.types.js";
+
 import CompetingInterests from "./CompetingInterests";
 import EconomicIndicators from "./EconomicIndicators";
 import PolicySettings from "./PolicySettings";
-import type { ActiveRequest, Policies, PolicyInputs } from "../shared.types.js";
-import { formatIndicator, formatMoney, formatPercent, formatPopulation } from "../shared.functions.js";
 import "./styles.css";
 
 const TURN_INTERVAL_MS = 1000;
