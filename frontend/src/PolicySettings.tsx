@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import type { ActiveRequest, Economy, Policies, PolicyInputs } from "../shared.types.js";
+import type { ActiveRequest, Policies, PolicyInputs } from "../shared.types.js";
 import PolicyControl from "./PolicyControl";
 
 const POLICY_CONTROLS: Array<{

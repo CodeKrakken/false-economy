@@ -1,4 +1,4 @@
-import type { InterestGroups } from "../shared.types.js";
+import { InterestGroups } from "../../shared.types.js";
 import { formatPercent } from "../shared.functions.js";
 
 type CompetingInterestsProps = {

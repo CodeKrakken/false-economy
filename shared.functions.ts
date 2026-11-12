@@ -1,4 +1,4 @@
-import type { Economy, EconomyRules } from "./backend/shared.types.js";
+import { Economy, EconomyRules } from "./shared.types.js";
 
 type OverthrowRiskState = Pick<
   Economy,

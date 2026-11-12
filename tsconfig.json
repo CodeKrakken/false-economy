@@ -13,5 +13,5 @@
     "noEmitOnError": true,
     "types": ["node"]
   },
-  "include": ["backend/**/*.ts", "shared.functions.ts"]
+  "include": ["backend/**/*.ts", "shared.functions.ts", "shared.types.ts"]
 }

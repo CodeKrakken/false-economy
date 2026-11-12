@@ -1,18 +1,7 @@
-import type {
-  AchievementId,
-  Economy,
-  EventChoice,
-  EventType,
-  GameEvent,
-  GameOutcome,
-  HistoryEntry,
-  IndicatorSnapshot, 
-  InterestGroups,
-  PolicyInput,
-  Settings,
-} from "./shared.types.js";
+import type { PolicyInput, Settings } from "./shared.types.js";
 
 import { hasOverthrowRisk } from "../shared.functions.js";
+import { AchievementId, Economy, EventChoice, EventType, GameEvent, GameOutcome, HistoryEntry, IndicatorSnapshot, InterestGroups } from "../shared.types.js";
 
 const POLICY_LIMITS: Record<keyof Settings, [number, number]> = {
   taxRate         : [0,  60],

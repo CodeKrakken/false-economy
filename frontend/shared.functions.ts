@@ -1,6 +1,7 @@
-import type { AdviserAdvice, Economy } from "./shared.types.js";
+import type { AdviserAdvice } from "./shared.types.js";
 import type { IndicatorFormat } from "./shared.types.js";
 import { hasOverthrowRisk } from "../shared.functions.js";
+import { Economy } from "../shared.types.js";
 
 export function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-US", {

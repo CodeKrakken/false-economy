@@ -1,4 +1,4 @@
-import type { Economy, IndicatorSnapshot } from "../shared.types.js";
+import { Economy, IndicatorSnapshot } from "../../shared.types.js";
 import { INDICATORS } from "../shared.data.js";
 import IndicatorCard from "./IndicatorCard";
 

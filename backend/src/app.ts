@@ -10,7 +10,8 @@ import {
 } from "../shared.functions.js";
 import { createInitialEconomy } from "../../shared.functions.js";
 
-import type { EventChoice, PolicyInput } from "../shared.types.js";
+import type { PolicyInput } from "../shared.types.js";
+import { EventChoice } from "../../shared.types.js";
 
 const REQUIRED_POLICY_FIELDS = [
   "taxRate", 
